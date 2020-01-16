@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Configuration</title>
+  </head>
+  <body>
+	<form>
+	  <div>
+		<label>Alma Host:</label>
+		<input type="text" id="almaHost" size="48" autofocus>
+	  </div>
+	  <br>
+	  <div>
+		<label>API Key:</label>
+		<input type="password" id="apiKey" size="50">
+	  </div>
+	  <br>
+	  <div>
+		<label>Alma Printer(s):</label>
+		<select id = "almaPrinter"
+			multiple = "multiple"
+			size = "5"
+			style="width: 450px;">
+		</select>
+	  </div>
+	  <br>
+	  <div>
+		<label>Local Printer:</label>
+		<select id = "localPrinter"
+			size = "5"
+			style="width: 450px;">
+		</select>
+	  </div>
+	  <br>
+	  <div>
+		  <input type="radio" id="methoda" name="method" value="auto" checked="checked">Automatic printing &emsp; Interval in minutes:<input type="text" id="interval" size=3><br>
+		  <input type="radio" id="methodm" name="method" value="manual">Manual printing<br>	 
+		</div>
+	  <br>
+	  <button type="submit">Save</button>
+	  <button type="button" onclick="javascript:window.close()">Cancel</button>
+
+	</form>
+  </body>
+  <script>
+	  require('./configWindow.js');
+  </script>
+</html>

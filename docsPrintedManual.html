@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <body>
+	<form>
+	<h4>
+	All requested Alma documents printed.<br>
+	Click <button type=submit>Print now</button> to request next batch of documents to print.
+	</h4>
+	<script>
+			const electron = require('electron');
+			const {ipcRenderer} = electron;
+			const form = document.querySelector('form');
+
+			form.addEventListener('submit', submitForm);
+	
+			function submitForm(e){
+				e.preventDefault();
+				ipcRenderer.send('print-now');
+			}
+		</script>
+	</form>
+  </body>
+</html>
