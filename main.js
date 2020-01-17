@@ -25,6 +25,9 @@ let almaPrinterList
 let configFile =  app.getPath("userData") + "/alma-print-config.json";
 console.log ('Config file = ' + configFile);
 
+const isMac = process.platform === 'darwin';
+console.log ('isMac = ' + isMac);
+
 function createWindow () {
 
   // Create the browser window.
@@ -302,27 +305,39 @@ function setMenus(){
     mainMenuTemplate[0].submenu[2].visible = true;
   }
   
-  if (process.platform == 'darwin'){
-    mainMenuTemplate.unshift({});
-  }
-  
-  if (process.env.NODE_ENV !== 'production'){
-    mainMenuTemplate.push({
-      label: 'Developer Tools',
-      submenu:[
-        {
-          label: 'Toggle DevTools',
-          accelerator: process.platform == 'darwin' ? 'Command+I' : 'Ctrl+I',
-           click(item, focusedWindow){
-            focusedWindow.toggleDevTools();
-          }
-        },
-        {
-          role: 'reload'
-        }
+  if (isMac) {
+    mainMenuTemplate.unshift ({
+      label: app.getName(),
+      submenu: [
+        {role: 'about'},
+        {type: 'separator'},
+        {role: 'services', submenu: []},
+        {type: 'separator'},
+        {role: 'hide'},
+        {role: 'hideothers'},
+        {role: 'unhide'},
+        {type: 'separator'},
+        {role: 'quit'}
       ]
     })
   }
+  
+  //If you want the "Developer Tools" in the browser window...
+  //mainMenuTemplate.push({
+  //  label: 'Developer Tools',
+  //  submenu:[
+  //    {
+  //      label: 'Toggle DevTools',
+  //      accelerator: process.platform == 'darwin' ? 'Command+I' : 'Ctrl+I',
+  //       click(item, focusedWindow){
+  //        focusedWindow.toggleDevTools();
+  //       }
+  //    },
+  //    {
+  //      role: 'reload'
+  //    }
+  //  ]
+  //})
   
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
   Menu.setApplicationMenu (mainMenu);
@@ -406,7 +421,6 @@ function getDocuments(){
     request, (resp) =>{
       // A chunk of data has been received.
       resp.on('data', (chunk) =>{
-        console.log ("collecting data from get request");
         data += chunk;
       });
       // Response has ended.
@@ -420,9 +434,7 @@ function getDocuments(){
           if (errorsExist != -1) {
             console.log ("Error in request");
             let startErrorMessage = data.indexOf("<errorMessage>") + 14;
-            console.log ("startErrorMessage = " + startErrorMessage);
             let endErrorMessage = data.indexOf("</errorMessage>");
-            console.log ("endErrorMessage = " + endErrorMessage);
             let errorMessage = data.substring(startErrorMessage, endErrorMessage);
             console.log ("Error message = " + errorMessage);
             const options = {
@@ -522,11 +534,13 @@ function setDocRequestTimer(){
 }
 
 function loadPage(page) {
-  mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, page),
-    protocal: 'file:',
-    slashes: true
-  }))
+  mainWindow.loadURL('File://' + __dirname + '\\' + page);
+  //The code below for loading the URL does not work on MacOS.
+  //mainWindow.loadURL(url.format({
+  //  pathname: path.join(__dirname, page),
+  //  protocal: 'file:',
+  //  slashes: true
+  //}))
 }
 
 function SetMenuAction(value) {
