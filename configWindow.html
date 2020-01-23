@@ -7,15 +7,23 @@
   <body>
 	<form>
 	  <div>
-		<label>Alma Host:</label>
-		<input type="text" id="almaHost" size="48" autofocus>
+		  <label>Region:</label>
+		  <select id="region">
+			<option value="ap" selected="selected">Asia Pacific</option>
+			<option value="ca">Canada</option>
+			<option value="cn">China</option>
+			<option value="eu">Europe</option>
+			<option value="na">North America</option>
+		  </select>
 	  </div>
 	  <br>
 	  <div>
-		<label>API Key:</label>
-		<input type="password" id="apiKey" size="50">
+		<label>API-key with read-only permissions for the Configuration area, and read/write permissions for the Task-Lists area:</label>
+		<input type="password" id="apiKey" size="50">&nbsp;<button type="button" onclick="javascript:testApiKey()">Test</button>
 	  </div>
+	  
 	  <br>
+<!--	
 	  <div>
 		<label>Alma Printer(s):</label>
 		<select id = "almaPrinter"
@@ -25,6 +33,7 @@
 		</select>
 	  </div>
 	  <br>
+-->
 	  <div>
 		<label>Local Printer:</label>
 		<select id = "localPrinter"

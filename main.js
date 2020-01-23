@@ -5,8 +5,7 @@ const ipcRenderer = require('electron').ipcRenderer
 const path = require('path')
 const url = require('url')
 const fs = require('fs');
-
-require('update-electron-app')()
+const {autoUpdater} = require("electron-updater");
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -20,6 +19,7 @@ let printing = false //set current printing status
 
 let docsInBatch = 0
 let docCount = 0
+let almaHost
 let localPrinterList 
 let almaPrinterList
 let configFile =  app.getPath("userData") + "/alma-print-config.json";
@@ -46,7 +46,7 @@ function createWindow () {
   
   InitializeApp (true);
 
-  if (configSettings.almaHost.length == 0 || configSettings.apiKey.length == 0) {
+  if (configSettings.apiKey.length == 0) {
     createConfigWindow();
   }
 
@@ -101,6 +101,10 @@ function InitializeApp(initialize) {
     //})
   }
 
+  almaHost = "https://api-" + configSettings.region + ".hosted.exlibrisgroup.com";
+
+  console.log ("almaHost = " + almaHost);
+
   if (initialize) {
       setMenus();
   }
@@ -120,7 +124,7 @@ function InitializeApp(initialize) {
 function createConfigWindow() {
   configWindow = new BrowserWindow({
     width: 500,
-    height: 475,
+    height: 375,
     title: "Configuration",
     modal: true,
     resizeable: false,
@@ -140,8 +144,8 @@ function createConfigWindow() {
     configWindow.webContents.send('send-settings', configSettings);
     console.log ('Send local printers to configWindow');
     configWindow.webContents.send('local-printers', localPrinterList);
-    console.log ('Send alma printers to configWindow');
-    configWindow.webContents.send('alma-printers', almaPrinterList);
+    //console.log ('Send alma printers to configWindow');
+    //configWindow.webContents.send('alma-printers', almaPrinterList);
   })
   //configWindow.removeMenu();
   configWindow.on('close', function(){
@@ -159,11 +163,6 @@ ipcMain.on('save-settings', function(e, configString){
   //app.relaunch();
   //app.quit();
   InitializeApp(false);
-})
-
-ipcMain.on('get-settings', function(e){
-  console.log('from renderer: get-settings');
-  e.sender.send('ping', 'test');
 })
 
 //Catch "Print now" from renderer
@@ -184,16 +183,13 @@ ipcMain.on('print-continue', function(e) {
   setPrintingStatus();
 })
 
-//Catch "give me local printers" from renderer
-ipcMain.on('get-local-printers', function(e){
-  console.log('from renderer: give me local printers');
-  mainWindows.webcontents.send('local-printers', printerList)
-})
-
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow)
+app.on('ready', function() {
+  autoUpdater.checkForUpdatesAndNotify();
+  createWindow();
+})
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {
@@ -252,38 +248,23 @@ const mainMenuTemplate = [
 function loadConfiguration(){
   console.log('Loading configuration...');
   let rc = false;
-
+  let configData;
   //Check if config file exists.
   if (!fs.existsSync(configFile)) {
     console.log ('config file not found...use defaults');
-    const configData = "{\"almaHost\": \"https:\/\/api-XX.hosted.exlibrisgroup.com\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\"}"
-    const configJSON = configData.toString('utf8');
-
-    configSettings = JSON.parse(configJSON)
+    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\"}"
   }
   else {
     console.log ('config file exists...read settings');
-    const configData = fs.readFileSync(configFile);
-    const configJSON = configData.toString('utf8');
-
-    configSettings = JSON.parse(configJSON)
-
-    //Ensure host starts with https://
-    if (configSettings.almaHost.substring(0, 8) != 'https://') {
-      console.log ("almaHost is not https protocol...fix it! = " + configSettings.almaHost.substring(0 ,8));
-      if (configSettings.almaHost.substring(0, 7) == 'http://') {
-        console.log ("switching almaHost from http to https");
-        configSettings.almaHost = "https://" + configSettings.almaHost.substring(7);
-      }
-      else {
-        console.log ("adding https to almaHost")
-        configSettings.almaHost = "https://" + configSettings.almaHost;
-      }
-    }
+    configData = fs.readFileSync(configFile);
     rc = true;
   }
 
-  console.log('Alma Host = ' + configSettings.almaHost);
+  const configJSON = configData.toString('utf8');
+  configSettings = JSON.parse(configJSON)
+  configSettings.localPrinter = decodeURIComponent(configSettings.localPrinter);
+
+  console.log('Region = ' + configSettings.region);
   console.log('API Key = ' + configSettings.apiKey);
   console.log('Alma Printer = ' + configSettings.almaPrinter);
   console.log('Local Printer = ' + configSettings.localPrinter);
@@ -411,7 +392,8 @@ function getDocuments(){
   const https = require('https');
   let data = ''
 
-  let request = configSettings.almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&printer=' + configSettings.almaPrinter + '&apikey=' + configSettings.apiKey + '&format=json'
+  let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&printer=' + configSettings.almaPrinter + '&apikey=' + configSettings.apiKey + '&format=json'
+  console.log ("request = " + request);
   docCount = 0
   waiting = false
 
@@ -580,3 +562,4 @@ function setPrintingStatusPage(){
   }
 
 }
+
