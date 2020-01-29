@@ -1,6 +1,6 @@
 {
   "name": "alma-print-daemon",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Application which listens for and prints letters from the Ex Libris Alma print queues.",
   "main": "main.js",
   "scripts": {
@@ -21,5 +21,10 @@
     "electron-updater": "^4.2.0",
     "electron-window-manager": "^1.0.6",
     "request": "^2.88.0"
+  },
+  "build": {
+    "win": {
+      "publish": ["github"]
+    }
   }
 }
