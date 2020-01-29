@@ -4,13 +4,6 @@ let testRequest;
 const form = document.querySelector('form');
 form.addEventListener('submit', submitForm);
 
-//Test API key 
-function testApiKey(){
-	const region = document.querySelector('#region').value;
-	const apiKey = document.querySelector('#apiKey').value;
-	testRequest = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/test";
-}
-
 //Handle saving of updated alma prin daemon settings
 function submitForm(e){
 	e.preventDefault();
@@ -91,6 +84,57 @@ ipcRenderer.on('local-printers', (event, localPrinters) => {
 		i++;
 	}
 })
+
+//Test API key 
+function testApiKey(){
+	const region = document.querySelector('#region').value;
+	const apiKey = document.querySelector('#apiKey').value;
+	let testRequest;	
+	testRequest = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/test?apikey=" + apiKey;
+	const https = require('https');
+	let data = ''
+  
+	console.log ("request = " + testRequest);
+  
+  	https.get(
+	  testRequest, (resp) =>{
+		// A chunk of data has been received.
+		resp.on('data', (chunk) =>{
+		  data += chunk;
+		});
+		// Response has ended.
+		resp.on('end', () =>{
+		  console.log("test get request response done!");
+		  //console.log("response = " + data);
+		  if (data.substring(0, 5) == "<?xml") {
+			//data = data.replace(/\s/g, '');
+			console.log("xml response = " + data);
+			let errorsExist = data.indexOf("<errorsExist>true</errorsExist>");
+			if (errorsExist != -1) {
+			  console.log ("Error in request");
+			  let startErrorMessage = data.indexOf("<errorMessage>") + 14;
+			  let endErrorMessage = data.indexOf("</errorMessage>");
+			  let errorMessage = data.substring(startErrorMessage, endErrorMessage);
+			  console.log ("Error message = " + errorMessage);
+			  alert(errorMessage);
+			}
+			else {
+				alert("\"GET\" test success!")
+			}
+		  }
+		})
+ 
+	  }).on('error', (e) => {
+		const options = {
+		  type: 'error',
+		  buttons: ['Close'],
+		  title: 'Communication Error',
+		  message: 'An error occurred communicating with Alma. Please check your Alma configuration options and try again.',
+		  detail: JSON.stringify(e)
+		}
+		alert (JSON.stringify(e));
+	  })
+}
 
 //Handle loading Alma printers
 //ipcRenderer.on('alma-printers', (event, almaPrinters) => {
