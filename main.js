@@ -41,7 +41,7 @@ function createWindow () {
       nodeIntegration: true
     }
   })
-  
+
   //mainWindow.webContents.openDevTools();
   localPrinterList = mainWindow.webContents.getPrinters();
   
@@ -86,6 +86,10 @@ function createWindow () {
     app.quit();
     mainWindow = null;
   })
+  mainWindow.once('ready-to-show', () => {
+    autoUpdater.allowPrerelease = true;
+    autoUpdater.checkForUpdatesAndNotify();
+  });
 }
 
 function InitializeApp(initialize) {
@@ -184,25 +188,23 @@ ipcMain.on('print-continue', function(e) {
   setPrintingStatus();
 })
 
-//ipcMain.on('restart_app', () => {
-//  autoUpdater.quitAndInstall();
-//});
+ipcMain.on('restart_app', () => {
+  autoUpdater.quitAndInstall();
+});
 
-//autoUpdater.on('update-available', () => {
-//  mainWindow.webContents.send('update_available');
-//});
+autoUpdater.on('update-available', () => {
+  mainWindow.webContents.send('update_available');
+});
 
-//autoUpdater.on('update-downloaded', () => {
-//  mainWindow.webContents.send('update_downloaded');
-//});
+autoUpdater.on('update-downloaded', () => {
+  mainWindow.webContents.send('update_downloaded');
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function() {
   createWindow();
-  autoUpdater.allowPrerelease = true;
-  autoUpdater.checkForUpdatesAndNotify();
 })
 
 // Quit when all windows are closed.
