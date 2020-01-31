@@ -5,7 +5,11 @@ const ipcRenderer = require('electron').ipcRenderer
 const path = require('path')
 const url = require('url')
 const fs = require('fs');
+const log = require('electron-log');
 const {autoUpdater} = require('electron-updater');
+
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'silly';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -86,10 +90,6 @@ function createWindow () {
     app.quit();
     mainWindow = null;
   })
-  mainWindow.once('ready-to-show', () => {
-    autoUpdater.allowPrerelease = true;
-    autoUpdater.checkForUpdatesAndNotify();
-  });
 }
 
 function InitializeApp(initialize) {
@@ -205,6 +205,8 @@ autoUpdater.on('update-downloaded', () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', function() {
   createWindow();
+  autoUpdater.allowPrerelease = true;
+  autoUpdater.checkForUpdatesAndNotify();
 })
 
 // Quit when all windows are closed.
