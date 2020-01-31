@@ -41,7 +41,7 @@ function createWindow () {
       nodeIntegration: true
     }
   })
-  
+  mainWindow.webContents.openDevTools();
   localPrinterList = mainWindow.webContents.getPrinters();
   
   InitializeApp (true);
@@ -199,6 +199,7 @@ autoUpdater.on('update-downloaded', () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', function() {
   createWindow();
+  autoUpdater.allowPrerelease = true;
   autoUpdater.checkForUpdatesAndNotify();
 })
 
