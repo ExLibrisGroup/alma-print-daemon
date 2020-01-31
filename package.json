@@ -1,6 +1,6 @@
 {
   "name": "alma-print-daemon",
-  "version": "0.4.3-alpha",
+  "version": "0.4.4-alpha",
   "description": "Application which listens for and prints letters from the Ex Libris Alma print queues.",
   "main": "main.js",
   "scripts": {
