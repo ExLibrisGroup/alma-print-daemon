@@ -23,13 +23,13 @@
 	</h4>
 	<div id="notification" class="hidden">
 		<p id="message"></p>
-		<button id="close-button" onClick="closeNotification()">
+		<button id="close-button" onClick="closeNotification()" class="hidden">
 		  Close
-		</button>
+		</button> 
 		<button id="restart-button" onClick="restartApp()" class="hidden">
 		  Restart
 		</button>
-	  </div>
+	</div>
 	<script>
 			const electron = require('electron');
 			const {ipcRenderer} = electron;
