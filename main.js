@@ -25,8 +25,9 @@ let docsInBatch = 0
 let docCount = 0
 let almaHost
 let localPrinterList 
-let almaPrinterList
+let almaPrinters;
 let configFile =  app.getPath("userData") + "/alma-print-config.json";
+
 console.log ('Config file = ' + configFile);
 
 const isMac = process.platform === 'darwin';
@@ -116,7 +117,9 @@ function InitializeApp(initialize) {
   else {
       resetMenus();
   }
-  
+
+  getAlmaPrinters();
+
   if (configSettings.interval == 0){
     loadPage('docsPrintManualPaused.html');
     setManualPrintingConfigMenuStatus (true);
@@ -124,12 +127,13 @@ function InitializeApp(initialize) {
   else {
     loadPage('docsPrintIntervalPaused.html');
   }
+
 }
 
 function createConfigWindow() {
   configWindow = new BrowserWindow({
     width: 500,
-    height: 375,
+    height: 500,
     title: "Configuration",
     modal: true,
     resizeable: false,
@@ -140,17 +144,18 @@ function createConfigWindow() {
     }
   })
   configWindow.setMenuBarVisibility(false)
-
   configWindow.loadURL('File://' + __dirname + '\\configWindow.html')
+
   //configWindow.webContents.openDevTools();
+
   configWindow.webContents.on('did-finish-load', () => {
     console.log ('did-finish-load for configWindow');
     console.log ('Send saved settings to configWindow');
     configWindow.webContents.send('send-settings', configSettings);
     console.log ('Send local printers to configWindow');
     configWindow.webContents.send('local-printers', localPrinterList);
-    //console.log ('Send alma printers to configWindow');
-    //configWindow.webContents.send('alma-printers', almaPrinterList);
+    console.log ('Send alma printers to configWindow');
+    configWindow.webContents.send('alma-printers', almaPrinters);
   })
   //configWindow.removeMenu();
   configWindow.on('close', function(){
@@ -411,7 +416,7 @@ function getDocuments(){
   const https = require('https');
   let data = ''
 
-  let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&printer=' + configSettings.almaPrinter + '&apikey=' + configSettings.apiKey + '&format=json'
+  let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&printer=' + configSettings.almaPrinter + '&apikey=' + configSettings.apiKey + '&limit=100&format=json'
   console.log ("request = " + request);
   docCount = 0
   waiting = false
@@ -429,7 +434,6 @@ function getDocuments(){
         console.log("get request response done!");
         //console.log("response = " + data);
         if (data.substring(0, 5) == "<?xml") {
-          //data = data.replace(/\s/g, '');
           console.log("xml response = " + data);
           let errorsExist = data.indexOf("<errorsExist>true</errorsExist>");
           if (errorsExist != -1) {
@@ -579,6 +583,67 @@ function setPrintingStatusPage(){
     waiting = true;
     SetMenuAction(true);
   }
-
 }
 
+//Function that communicates with Alma to get the Alma printers.
+function getAlmaPrinters(){
+
+  console.log ('in getAlmaPrinters()')
+
+  const https = require('https');
+  let data = ''
+
+  let request = almaHost + "/almaws/v1/conf/printers?apikey=" + configSettings.apiKey  + '&printout_queue=true&limit=100&format=json'
+  console.log ("request = " + request);
+
+  https.get(
+    request, (resp) =>{
+      // A chunk of data has been received.
+      resp.on('data', (chunk) =>{
+        data += chunk;
+      });
+      // Response has ended.
+      resp.on('end', () =>{
+        console.log("get request response done!");
+        console.log("response = " + data);
+        if (data.substring(0, 5) == "<?xml") {
+          //data = data.replace(/\s/g, '');
+          console.log("xml response = " + data);
+          let errorsExist = data.indexOf("<errorsExist>true</errorsExist>");
+          if (errorsExist != -1) {
+            console.log ("Error in request");
+            let startErrorMessage = data.indexOf("<errorMessage>") + 14;
+            let endErrorMessage = data.indexOf("</errorMessage>");
+            let errorMessage = data.substring(startErrorMessage, endErrorMessage);
+            console.log ("Error message = " + errorMessage);
+            const options = {
+              type: 'error',
+              buttons: ['Close'],
+              title: 'Communication Error',
+              message: errorMessage
+            }
+            dialog.showMessageBox(mainWindow, options, (response) => {
+              console.log('The response is ' + response)
+            })
+            return;
+          }
+        }
+        if (data.length == 0) {
+          console.log ("No alma printers data received...");
+          return;
+        }
+        almaPrinters = JSON.parse(data)
+      })
+    }).on('error', (e) => {
+      const options = {
+        type: 'error',
+        buttons: ['Close'],
+        title: 'Communication Error',
+        message: 'An error occurred communicating with Alma. Please check your Alma configuration options and try again.',
+        detail: JSON.stringify(e)
+      }
+      dialog.showMessageBox(mainWindow, options, (response) => {
+        console.log('The response is ' + response)
+      })
+    })
+}

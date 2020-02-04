@@ -1,5 +1,6 @@
 const ipcRenderer = require('electron').ipcRenderer;
 let selectedLocalPrinter;	
+let savedAlmaPrinters;
 let testRequest;		
 const form = document.querySelector('form');
 form.addEventListener('submit', submitForm);
@@ -11,8 +12,6 @@ function submitForm(e){
 	let interval = 0;
 	const region = document.querySelector('#region').value;
 	const apiKey = document.querySelector('#apiKey').value;
-	const almaPrinter = "";
-	//const almaPrinter = document.querySelector('#almaPrinter').value;
 	const localPrinter = document.querySelector('#localPrinter').value;
 	//Set interval based on which method radio button selected:  automatic or manual
 	if (document.querySelector('input[name="method"]:checked').value == "manual") {
@@ -29,7 +28,20 @@ function submitForm(e){
 	if (apiKey.length  && !badInterval) {
 		var configString = "{\"region\": \"" + region + "\",";
 		configString = configString + "\"apiKey\": \"" + apiKey + "\",";
-		configString = configString + "\"almaPrinter\": \"" + almaPrinter + "\",";
+
+		//Now build the list of selected Alma printers
+		var x = document.getElementById("almaPrinter");
+		var selectedAlmaPrinters = "";
+		for (var i = 0; i < x.options.length; i++) {
+			if (x.options[i].selected) {
+				if (selectedAlmaPrinters.length) {
+					selectedAlmaPrinters = selectedAlmaPrinters + ",";
+				} 
+				selectedAlmaPrinters = selectedAlmaPrinters + "\"" + x.options[i].value + "\"";
+			}
+		}
+		configString = configString + "\"almaPrinter\": [" + selectedAlmaPrinters + "],";
+		
 		configString = configString + "\"localPrinter\": \"" + encodeURIComponent(localPrinter) +  "\",";
 		configString = configString + "\"interval\": \"" + interval + "\"}";
 		ipcRenderer.send('save-settings', configString);
@@ -55,6 +67,7 @@ ipcRenderer.on('send-settings', (event, configSettings) => {
 		document.getElementById('methodm').checked = true;
 	}
 
+	savedAlmaPrinters = configSettings.almaPrinter;
 	selectedLocalPrinter = configSettings.localPrinter;
 	console.log ('send-settings selectedLocalPrinter = ' + selectedLocalPrinter);
 })
@@ -137,15 +150,37 @@ function testApiKey(){
 }
 
 //Handle loading Alma printers
-//ipcRenderer.on('alma-printers', (event, almaPrinters) => {
-//	let i = 0;
-//	var sel = document.getElementById('almaPrinter');
-//	while (i < almaPrinters.length) {
-//		var opt = document.createElement('option');
-//		opt.appendChild(document.createTextNode(almaPrinters[i].name));
-//		opt.value = almaPrinters[i].name;
-//		sel.appendChild(opt);
-//		i++;
-//	}
-//})
+ipcRenderer.on('alma-printers', (event, almaPrinters) => {
+  let i;
+
+  //Load Alma printer queue printers into the selection list
+  var sel = document.getElementById('almaPrinter');
+  const printersDefined = almaPrinters.total_record_count;
+  console.log ("Parsed Alma printers JSON.  Number of printers = " + printersDefined);
+  let displayName;
+  for (i = 0; i < printersDefined; i++) {
+	if (almaPrinters.printer[i].description !== null) {
+	  displayName = almaPrinters.printer[i].name + " - " + almaPrinters.printer[i].description;
+	}
+	else {
+	  displayName = almaPrinters.printer[i].name
+	}
+  	var opt = document.createElement('option');
+	opt.appendChild(document.createTextNode(displayName));
+	opt.value = almaPrinters.printer[i].id;
+	sel.appendChild(opt);
+  }
+  //Now here we need to select the Alma printers previously saved in the json config file 
+  let entries = savedAlmaPrinters.toString().split(",");
+  for (i = 0; i < entries.length; i++) {
+	 console.log ("entry = " + entries[i]);
+	 for (let j = 0; j < sel.options.length; j++) {
+		console.log ("option = " + sel.options[j].value);
+		  if (sel.options[j].value == entries[i]) {
+			  sel.options[j].selected = true;
+			  break;
+		  }
+	  }
+   }
+})
 
