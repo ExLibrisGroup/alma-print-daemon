@@ -105,7 +105,7 @@ function testApiKey(){
 	let testRequest;	
 	testRequest = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/test?apikey=" + apiKey;
 	const https = require('https');
-	let data = ''
+	let data = '';
   
 	console.log ("request = " + testRequest);
   
@@ -120,7 +120,6 @@ function testApiKey(){
 		  console.log("test get request response done!");
 		  //console.log("response = " + data);
 		  if (data.substring(0, 5) == "<?xml") {
-			//data = data.replace(/\s/g, '');
 			console.log("xml response = " + data);
 			let errorsExist = data.indexOf("<errorsExist>true</errorsExist>");
 			if (errorsExist != -1) {
@@ -132,7 +131,7 @@ function testApiKey(){
 			  alert(errorMessage);
 			}
 			else {
-				alert("\"GET\" test success!")
+				alert("\"GET\" test success!");
 			}
 		  }
 		})
@@ -163,7 +162,7 @@ ipcRenderer.on('alma-printers', (event, almaPrinters) => {
 	  displayName = almaPrinters.printer[i].name + " - " + almaPrinters.printer[i].description;
 	}
 	else {
-	  displayName = almaPrinters.printer[i].name
+	  displayName = almaPrinters.printer[i].name;
 	}
   	var opt = document.createElement('option');
 	opt.appendChild(document.createTextNode(displayName));

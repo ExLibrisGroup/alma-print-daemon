@@ -1,9 +1,9 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow, dialog, Menu} = require('electron')
-const ipcMain = require('electron').ipcMain
-const ipcRenderer = require('electron').ipcRenderer
-const path = require('path')
-const url = require('url')
+const {app, BrowserWindow, dialog, Menu} = require('electron');
+const ipcMain = require('electron').ipcMain;
+const ipcRenderer = require('electron').ipcRenderer;
+const path = require('path');
+const url = require('url');
 const fs = require('fs');
 const log = require('electron-log');
 const {autoUpdater} = require('electron-updater');
@@ -13,18 +13,21 @@ autoUpdater.logger.transports.file.level = 'silly';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let mainWindow
-let configWindow
-let configSettings
-let printDoc
-let timer
-let waiting = true
-let printing = false //set current printing status
+let mainWindow;
+let configWindow;
+let configSettings;
+let printDoc;
+let timer;
+let waiting = true;
+let printing = false; //set current printing status
 
-let docsInBatch = 0
-let docCount = 0
-let almaHost
-let localPrinterList 
+let numDocsToPrint = 0;
+let numDocsInBatch = 0;
+let numDocsInBatchCountdown = 0;
+let numDocsPrintedOffset = 0;
+let docIndex = 0;
+let almaHost;
+let localPrinterList ;
 let almaPrinters;
 let configFile =  app.getPath("userData") + "/alma-print-config.json";
 
@@ -58,30 +61,36 @@ function createWindow () {
 
   mainWindow.webContents.on('did-finish-load', () => {
 
-    console.log('In did-finish-load-document')
+    console.log('In did-finish-load-document');
     if (waiting) {
       console.log ('Now waiting for next batch, either automatic or manual...');
       return;
     }
     mainWindow.webContents.print({silent: true, deviceName: configSettings.localPrinter}, function(success){
         if (success) {
-          
            console.log('print success mainWindow');
-           let postRequest = printDoc.printout[docCount].link + '?op=mark_as_printed&apikey=' + configSettings.apiKey;
+           let postRequest = printDoc.printout[docIndex].link + '?op=mark_as_printed&apikey=' + configSettings.apiKey;
 
            updateDocument(postRequest);
 
-           docCount++;
-           if (docCount < printDoc.total_record_count) {
-              console.log('load document #' + docCount);
-              mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docCount].letter));
+           docIndex++;
+           if (docIndex < numDocsInBatch) {
+              console.log('load document #' + docIndex);
+              mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docIndex].letter));
+              AdjustIterators();
            }
-           else {
-            setPrintingStatusPage();
+           else if (numDocsToPrint) {
+              console.log('More docs to retrieve.  Make request with offset = ' + numDocsPrintedOffset);
+              getDocuments(numDocsPrintedOffset);
+           } else {
+              console.log('all docs in batch done');
+              numDocsPrintedOffset = 0;
+              setPrintingStatusPage();
            }
           }
       })
   })
+
 
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
@@ -91,6 +100,12 @@ function createWindow () {
     app.quit();
     mainWindow = null;
   })
+}
+
+function AdjustIterators() {
+  numDocsToPrint--;
+  numDocsInBatchCountdown--;
+  numDocsPrintedOffset++;
 }
 
 function InitializeApp(initialize) {
@@ -127,7 +142,6 @@ function InitializeApp(initialize) {
   else {
     loadPage('docsPrintIntervalPaused.html');
   }
-
 }
 
 function createConfigWindow() {
@@ -143,8 +157,8 @@ function createConfigWindow() {
       nodeIntegration: true
     }
   })
-  configWindow.setMenuBarVisibility(false)
-  configWindow.loadURL('File://' + __dirname + '\\configWindow.html')
+  configWindow.setMenuBarVisibility(false);
+  configWindow.loadURL('File://' + __dirname + '\\configWindow.html');
 
   //configWindow.webContents.openDevTools();
 
@@ -178,7 +192,7 @@ ipcMain.on('save-settings', function(e, configString){
 //Catch "Print now" from renderer
 ipcMain.on('print-now', function (e){
   console.log('from renderer:  user clicked print now');
-  getDocuments();
+  getDocuments(0);
 })
 
 //Catch "Pause printing" from renderer
@@ -218,13 +232,13 @@ app.on('ready', function() {
 app.on('window-all-closed', function () {
   // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin') app.quit();
 })
 
 app.on('activate', function () {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (mainWindow === null) createWindow()
+  if (mainWindow === null) createWindow();
 })
 
 
@@ -247,7 +261,7 @@ const mainMenuTemplate = [
         id: 'manual-print',
         visible: false,
         click(){
-          getDocuments();
+          getDocuments(0);
         }
       },
       {
@@ -276,7 +290,7 @@ function loadConfiguration(){
   //Check if config file exists.
   if (!fs.existsSync(configFile)) {
     console.log ('config file not found...use defaults');
-    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\"}"
+    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\"}";
   }
   else {
     console.log ('config file exists...read settings');
@@ -285,7 +299,7 @@ function loadConfiguration(){
   }
 
   const configJSON = configData.toString('utf8');
-  configSettings = JSON.parse(configJSON)
+  configSettings = JSON.parse(configJSON);
   configSettings.localPrinter = decodeURIComponent(configSettings.localPrinter);
 
   console.log('Region = ' + configSettings.region);
@@ -295,11 +309,10 @@ function loadConfiguration(){
   console.log('Interval (minutes) = ' + configSettings.interval);
 
   return rc;
-  
 }
 
 function setMenus(){
-  console.log ('in setMenus')
+  console.log ('in setMenus');
 
   if (configSettings.interval == 0) {
     mainMenuTemplate[0].submenu[1].visible = true;
@@ -349,7 +362,7 @@ function setMenus(){
 }
 
 function resetMenus(){
-  console.log ('in resetMenus')
+  console.log ('in resetMenus');
 
   if (configSettings.interval == 0) {
     mainMenuTemplate[0].submenu[1].visible = true;
@@ -365,17 +378,17 @@ function resetMenus(){
 }
 
 function setPrintingStatus(){
-  console.log ('in setPrintingStatus')
+  console.log ('in setPrintingStatus');
 
   //Currently printing, so now set to paused since user clicked pause printing.
   if (printing) {
-    console.log ('Paused printing...timer cleared.')
-    printing = false
-    mainMenuTemplate[0].submenu[2].label = 'Continue printing'
+    console.log ('Paused printing...timer cleared.');
+    printing = false;
+    mainMenuTemplate[0].submenu[2].label = 'Continue printing';
     mainMenuTemplate[0].submenu[2].enabled = true;
     //clear the timer since user has paused printing
     clearTimeout (timer);
-    loadPage('docsPrintIntervalPaused.html')
+    loadPage('docsPrintIntervalPaused.html');
     //Enable "File|Configuration..." menu option....things can be changed while printing is paused.
     mainMenuTemplate[0].submenu[0].enabled = true;
   }
@@ -383,10 +396,10 @@ function setPrintingStatus(){
   else {
     console.log ('Continued printing...')
     printing = true
-    mainMenuTemplate[0].submenu[2].label = 'Pause printing'
+    mainMenuTemplate[0].submenu[2].label = 'Pause printing';
     //Disable "File|Configuration..." menu option....things can't be changed while printing.
     mainMenuTemplate[0].submenu[0].enabled = false;
-    getDocuments()
+    getDocuments(0);
   }
 
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
@@ -400,26 +413,24 @@ function setManualPrintingConfigMenuStatus(value) {
       Menu.setApplicationMenu (mainMenu);
 }
 
+//Function to control if documents should be requested when the timer hits
+function getDocumentsTimerController() {
+  console.log ('Timer triggered');
+  getDocuments(0);
+}
+
 //Function that communicates with Alma to get the documents to print.
-function getDocuments(){
+function getDocuments(offset){
 
-  console.log ('in getDocuments()')
+  console.log ('in getDocuments()');
 
-  if (docsInBatch != docCount) {
-    console.log ('all docs in current batch not printed yet...do not ask for next batch')
-    return
-  }
-  else {
-    console.log('all docs from current batch printed...ask for next batch')
-  }
-  
   const https = require('https');
-  let data = ''
+  let data = '';
 
-  let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&printer=' + configSettings.almaPrinter + '&apikey=' + configSettings.apiKey + '&limit=100&format=json'
+  let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&printer_id=' + configSettings.almaPrinter + '&apikey=' + configSettings.apiKey + '&limit=100&offset=' + offset + '&format=json';
   console.log ("request = " + request);
-  docCount = 0
-  waiting = false
+  docIndex = 0;
+  waiting = false;
 
   SetMenuAction(false);
 
@@ -459,24 +470,34 @@ function getDocuments(){
         if (data.length == 0) {
           console.log ("No data received...")
           if (configSettings.interval > 0) {
-            loadPage('docsPrintedInterval.html')
+            loadPage('docsPrintedInterval.html');
             setDocRequestTimer();
             SetMenuAction(true);
           }
           else {
-            loadPage('docsPrintedManual.html')
+            loadPage('docsPrintedManual.html');
             setManualPrintingConfigMenuStatus (true);
             waiting = true
           }
           return
         }
-        printDoc = JSON.parse(data)
+        //clear the timer since we are currently processing documents
+        console.log ('processing documents....clear timer');
+        clearTimeout (timer);
+        printDoc = JSON.parse(data);
         console.log ("Parsed JSON response...now start printing");
-        if (printDoc.total_record_count > 0) {
-          docsInBatch = printDoc.total_record_count
-          console.log('number of documents = ' + printDoc.total_record_count) 
-          console.log('load document #' + docCount)
-          mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docCount].letter))
+        if (printDoc.printout.length > 0) {
+          //If an offset was passed in, we are in the middle of processing a batch of documents...don't reset the number of docs to print
+          if (offset == 0) {
+            numDocsToPrint = printDoc.total_record_count;
+          }
+          numDocsInBatch = printDoc.printout.length;
+          numDocsInBatchCountdown = numDocsInBatch;
+          console.log('number of documents total = ' + numDocsToPrint); 
+          console.log('number of documents in request response = ' + numDocsInBatch);
+          console.log('load document #' + docIndex);
+          mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docIndex].letter));
+          AdjustIterators();
         }
         else {
           console.log ("No documents in response...set printing status page appropriately");
@@ -493,7 +514,7 @@ function getDocuments(){
         detail: JSON.stringify(e)
       }
       dialog.showMessageBox(mainWindow, options, (response) => {
-        console.log('The response is ' + response)
+        console.log('The response is ' + response);
       })
       waiting = true;
       //SetMenuAction(true);
@@ -522,20 +543,19 @@ function updateDocument(postRequest){
         details: JSON.stringify(error)
       }
       dialog.showMessageBox(mainWindow, options, (response) => {
-        console.log('The response is ' + response)
+        console.log('The response is ' + response);
       })
     } 
   } )
-
 }
 
-function setDocRequestTimer(){
+function setDocRequestTimer() {
   //If interval is not set, user is manually requesting documents to be printed.....don't set timer
   if (configSettings.interval == 0) {
-    return
+    return;
   }
-  console.log ('set timer to get next batch of documents to print')
-  timer = setTimeout(getDocuments, configSettings.interval  * 60000);
+  console.log ('set timer to get next batch of documents to print');
+  timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
 }
 
 function loadPage(page) {
@@ -551,12 +571,12 @@ function loadPage(page) {
 function SetMenuAction(value) {
   console.log ("in SetMenuAction");
   if (configSettings.interval == 0) {
-    console.log (mainMenuTemplate[0].submenu[1].label + " = " + value)
-    mainMenuTemplate[0].submenu[1].enabled = value
+    console.log (mainMenuTemplate[0].submenu[1].label + " = " + value);
+    mainMenuTemplate[0].submenu[1].enabled = value;
   }
   else {
-    console.log (mainMenuTemplate[0].submenu[2].label + " = " + value)
-    mainMenuTemplate[0].submenu[2].enabled = value
+    console.log (mainMenuTemplate[0].submenu[2].label + " = " + value);
+    mainMenuTemplate[0].submenu[2].enabled = value;
   }
 
   //If we are waiting, configuration options can be changed.....but if not waiting, they cannot.
@@ -573,7 +593,7 @@ function SetMenuAction(value) {
 function setPrintingStatusPage(){
   console.log ('In setPrintingStatusPage');
   if (configSettings.interval > 0) {
-    loadPage ('docsPrintedInterval.html')
+    loadPage ('docsPrintedInterval.html');
     setDocRequestTimer();
     SetMenuAction(true);
     waiting = true;
@@ -587,13 +607,12 @@ function setPrintingStatusPage(){
 
 //Function that communicates with Alma to get the Alma printers.
 function getAlmaPrinters(){
-
-  console.log ('in getAlmaPrinters()')
+  console.log ('in getAlmaPrinters()');
 
   const https = require('https');
-  let data = ''
+  let data = '';
 
-  let request = almaHost + "/almaws/v1/conf/printers?apikey=" + configSettings.apiKey  + '&printout_queue=true&limit=100&format=json'
+  let request = almaHost + "/almaws/v1/conf/printers?apikey=" + configSettings.apiKey  + '&printout_queue=true&limit=100&format=json';
   console.log ("request = " + request);
 
   https.get(
@@ -607,7 +626,6 @@ function getAlmaPrinters(){
         console.log("get request response done!");
         console.log("response = " + data);
         if (data.substring(0, 5) == "<?xml") {
-          //data = data.replace(/\s/g, '');
           console.log("xml response = " + data);
           let errorsExist = data.indexOf("<errorsExist>true</errorsExist>");
           if (errorsExist != -1) {
@@ -623,7 +641,7 @@ function getAlmaPrinters(){
               message: errorMessage
             }
             dialog.showMessageBox(mainWindow, options, (response) => {
-              console.log('The response is ' + response)
+              console.log('The response is ' + response);
             })
             return;
           }
@@ -632,18 +650,18 @@ function getAlmaPrinters(){
           console.log ("No alma printers data received...");
           return;
         }
-        almaPrinters = JSON.parse(data)
+        almaPrinters = JSON.parse(data);
       })
     }).on('error', (e) => {
       const options = {
         type: 'error',
         buttons: ['Close'],
         title: 'Communication Error',
-        message: 'An error occurred communicating with Alma. Please check your Alma configuration options and try again.',
+        message: 'An error occurred requesting available Alma printer queues. Please check your Alma configuration options and try again.',
         detail: JSON.stringify(e)
       }
       dialog.showMessageBox(mainWindow, options, (response) => {
-        console.log('The response is ' + response)
+        console.log('The response is ' + response);
       })
     })
 }
