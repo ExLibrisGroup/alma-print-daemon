@@ -248,7 +248,7 @@ app.on('activate', function () {
 const mainMenuTemplate = [
   {
     label:'File',
-    visible: false,
+    visible: true,
     submenu:[
       {
         label: 'Configuration...',
@@ -485,6 +485,11 @@ function getDocuments(offset){
         console.log ('processing documents....clear timer');
         clearTimeout (timer);
         printDoc = JSON.parse(data);
+        if (printDoc.total_record_count == 0) {
+          console.log ("No documents in response...set printing status page appropriately");
+          setPrintingStatusPage();
+          return;
+        }
         console.log ("Parsed JSON response...now start printing");
         if (printDoc.printout.length > 0) {
           //If an offset was passed in, we are in the middle of processing a batch of documents...don't reset the number of docs to print
