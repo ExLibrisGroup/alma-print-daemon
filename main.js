@@ -252,12 +252,14 @@ const mainMenuTemplate = [
     submenu:[
       {
         label: 'Configuration...',
+        accelerator: 'CommandOrControl+O',
         click(){
         createConfigWindow();
        }
       },
       {
         label: 'Print now',
+        accelerator:  'CommandOrControl+P',
         id: 'manual-print',
         visible: false,
         click(){
@@ -266,6 +268,7 @@ const mainMenuTemplate = [
       },
       {
         label: 'Continue printing',
+        accelerator: 'CommandOrControl+P',
         id: 'interval-print',
         visible: false,
         click(){
