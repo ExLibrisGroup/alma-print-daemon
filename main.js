@@ -133,9 +133,11 @@ function InitializeApp(initialize) {
       resetMenus();
   }
 
-  getAlmaPrinters();
+  if (configSettings.apiKey.length != 0) {
+    getAlmaPrinters();
+  }
 
-  if (configSettings.interval == 0){
+  if (configSettings.interval == 0) {
     loadPage('docsPrintManualPaused.html');
     setManualPrintingConfigMenuStatus (true);
   }
