@@ -432,7 +432,10 @@ function getDocuments(offset){
   const https = require('https');
   let data = '';
 
-  let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&printer_id=' + configSettings.almaPrinter + '&apikey=' + configSettings.apiKey + '&limit=100&offset=' + offset + '&format=json';
+  let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&apikey=' + configSettings.apiKey + '&limit=100&offset=' + offset + '&format=json';
+  if (configSettings.almaPrinter.length > 0) {
+    request = request + '&printer_id=' + configSettings.almaPrinter;
+  }
   console.log ("request = " + request);
   docIndex = 0;
   waiting = false;
