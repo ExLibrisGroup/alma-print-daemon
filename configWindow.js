@@ -1,4 +1,5 @@
 const ipcRenderer = require('electron').ipcRenderer;
+const {dialog} = require('electron');
 let selectedLocalPrinter;	
 let savedAlmaPrinters;
 let testRequest;		
@@ -19,18 +20,35 @@ function submitForm(e){
 	}
 	else {
 		interval = document.querySelector('#interval').value;
-		if (interval == 0) {
+		if (interval <= 0) {
 			badInterval = true;
 		}
 	}
-	
+
+	if (apiKey.length == 0) {
+		alert ('An API key must be supplied.');
+		document.getElementById("apiKey").focus();
+		return false;
+	}
+
+	if (badInterval) {
+		alert ('The interval must be greater than 0.');
+		document.getElementById("interval").focus();
+		return false;
+	}
+	var x = document.getElementById("almaPrinter");
+	if (x.length == 0) {
+		alert ('There are no Alma printout queues for the supplied API key.');
+		document.getElementById("apiKey").focus();
+		return false;
+	}
+
 	//If all required config values entered, it is ok to save.
-	if (apiKey.length  && !badInterval) {
+	if (apiKey.length  && !badInterval && x.length > 0) {
 		var configString = "{\"region\": \"" + region + "\",";
 		configString = configString + "\"apiKey\": \"" + apiKey + "\",";
 
 		//Now build the list of selected Alma printers
-		var x = document.getElementById("almaPrinter");
 		var selectedAlmaPrinters = "";
 		for (var i = 0; i < x.options.length; i++) {
 			if (x.options[i].selected) {
@@ -39,6 +57,10 @@ function submitForm(e){
 				} 
 				selectedAlmaPrinters = selectedAlmaPrinters + "\"" + x.options[i].value + "\"";
 			}
+		}
+		if (selectedAlmaPrinters.length == 0 ) {
+			alert ('Please select at least one Alma Printout Queue.');
+			return false;
 		}
 		configString = configString + "\"almaPrinter\": [" + selectedAlmaPrinters + "],";
 		
@@ -141,7 +163,7 @@ function testApiKey(){
 		  type: 'error',
 		  buttons: ['Close'],
 		  title: 'Communication Error',
-		  message: 'An error occurred communicating with Alma. Please check your Alma configuration options and try again.',
+		  message: 'An error occurred communicating with Alma. Please check your Alma Print Daemon configuration settings and try again.',
 		  detail: JSON.stringify(e)
 		}
 		alert (JSON.stringify(e));
@@ -150,36 +172,114 @@ function testApiKey(){
 
 //Handle loading Alma printers
 ipcRenderer.on('alma-printers', (event, almaPrinters) => {
-  let i;
-
-  //Load Alma printer queue printers into the selection list
-  var sel = document.getElementById('almaPrinter');
-  const printersDefined = almaPrinters.total_record_count;
-  console.log ("Parsed Alma printers JSON.  Number of printers = " + printersDefined);
-  let displayName;
-  for (i = 0; i < printersDefined; i++) {
-	if (almaPrinters.printer[i].description !== null) {
-	  displayName = almaPrinters.printer[i].name + " - " + almaPrinters.printer[i].description;
+	if (configSettings.apiKey.length > 0) {
+		loadAlmaPrinters(almaPrinters);
 	}
-	else {
-	  displayName = almaPrinters.printer[i].name;
-	}
-  	var opt = document.createElement('option');
-	opt.appendChild(document.createTextNode(displayName));
-	opt.value = almaPrinters.printer[i].id;
-	sel.appendChild(opt);
-  }
-  //Now here we need to select the Alma printers previously saved in the json config file 
-  let entries = savedAlmaPrinters.toString().split(",");
-  for (i = 0; i < entries.length; i++) {
-	 console.log ("entry = " + entries[i]);
-	 for (let j = 0; j < sel.options.length; j++) {
-		console.log ("option = " + sel.options[j].value);
-		  if (sel.options[j].value == entries[i]) {
-			  sel.options[j].selected = true;
-			  break;
-		  }
-	  }
-   }
 })
 
+//Function that communicates with Alma to get the Alma printers.
+function getAlmaPrinters() {
+	console.log ('in getAlmaPrinters()');
+	const region = document.querySelector('#region').value;
+	const apiKey = document.querySelector('#apiKey').value;
+	const https = require('https');
+	let data = '';
+
+	//First remove any Alma printers in the listbox already since we are presumably using a different API key...
+	var sel = document.getElementById('almaPrinter');
+	if (sel.length > 0) {
+		while (sel.length) {
+			sel.remove(0);
+		}
+	}
+	
+  	let request = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/printers?apikey=" + apiKey  + '&printout_queue=true&limit=100&format=json';
+	console.log ("request = " + request);
+  
+	https.get(
+	  request, (resp) =>{
+		// A chunk of data has been received.
+		resp.on('data', (chunk) =>{
+		  data += chunk;
+		});
+		// Response has ended.
+		resp.on('end', () =>{
+		  console.log("get request response done!");
+		  console.log("response = " + data);
+		  if (data.substring(0, 5) == "<?xml") {
+			console.log("xml response = " + data);
+			let errorsExist = data.indexOf("<errorsExist>true</errorsExist>");
+			if (errorsExist != -1) {
+			  console.log ("Error in request");
+			  let startErrorMessage = data.indexOf("<errorMessage>") + 14;
+			  let endErrorMessage = data.indexOf("</errorMessage>");
+			  let errorMessage = data.substring(startErrorMessage, endErrorMessage);
+			  console.log ("Error message = " + errorMessage);
+			  alert(errorMessage);
+			  return;
+			}
+		  }
+		  if (data.length == 0) {
+			console.log ("No alma printers data received...");
+			return;
+		  }
+		  //almaPrinters = JSON.parse(data);
+		  loadAlmaPrinters(JSON.parse(data));
+		})
+	  }).on('error', (e) => {
+		const options = {
+		  type: 'error',
+		  buttons: ['Close'],
+		  title: 'Communication Error',
+		  message: 'An error occurred requesting available Alma printout queues. Please check your Alma Print Daemon configuration settings and try again.',
+		  detail: JSON.stringify(e)
+		}
+		dialog.showMessageBox(mainWindow, options, (response) => {
+		  console.log('The response is ' + response);
+		})
+	  })
+  }
+
+  function loadAlmaPrinters(almaPrinters) {
+	let i;
+
+	//If no printers, go back
+	if (almaPrinters == null) {
+		alert ('There are no Alma Printer Queues defined for the supplied API key.');
+		return;
+	}
+	//Load Alma printer queue printers into the selection list
+	var sel = document.getElementById('almaPrinter');
+
+	const printersDefined = almaPrinters.total_record_count;
+	if (printersDefined == 0) {
+		alert ('There are no Alma printout queues for the supplied API key.');
+		return;
+	}
+	console.log ("Parsed Alma printers JSON.  Number of printers = " + printersDefined);
+	let displayName;
+	for (i = 0; i < printersDefined; i++) {
+	  if (almaPrinters.printer[i].description !== null) {
+		displayName = almaPrinters.printer[i].name + " - " + almaPrinters.printer[i].description;
+	  }
+	  else {
+		displayName = almaPrinters.printer[i].name;
+	  }
+		var opt = document.createElement('option');
+	  opt.appendChild(document.createTextNode(displayName));
+	  opt.value = almaPrinters.printer[i].id;
+	  sel.appendChild(opt);
+	}
+	//Now here we need to select the Alma printers previously saved in the json config file 
+	let entries = savedAlmaPrinters.toString().split(",");
+	for (i = 0; i < entries.length; i++) {
+	   console.log ("entry = " + entries[i]);
+	   for (let j = 0; j < sel.options.length; j++) {
+		  console.log ("option = " + sel.options[j].value);
+			if (sel.options[j].value == entries[i]) {
+				sel.options[j].selected = true;
+				break;
+			}
+		}
+	 }
+  }

@@ -149,7 +149,7 @@ function InitializeApp(initialize) {
 function createConfigWindow() {
   configWindow = new BrowserWindow({
     width: 500,
-    height: 500,
+    height: 525,
     title: "Configuration",
     modal: true,
     resizeable: false,
@@ -345,23 +345,6 @@ function setMenus(){
     })
   }
   
-  //If you want the "Developer Tools" in the browser window...
-  //mainMenuTemplate.push({
-  //  label: 'Developer Tools',
-  //  submenu:[
-  //    {
-  //      label: 'Toggle DevTools',
-  //      accelerator: process.platform == 'darwin' ? 'Command+I' : 'Ctrl+I',
-  //       click(item, focusedWindow){
-  //        focusedWindow.toggleDevTools();
-  //       }
-  //    },
-  //    {
-  //      role: 'reload'
-  //    }
-  //  ]
-  //})
-  
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
   Menu.setApplicationMenu (mainMenu);
 }
@@ -523,7 +506,7 @@ function getDocuments(offset){
         type: 'error',
         buttons: ['Close'],
         title: 'Communication Error',
-        message: 'An error occurred communicating with Alma. Please check your Alma configuration options and try again.',
+        message: 'An error occurred communicating with Alma. Please check your Alma Print Daemon configuration settings and try again.',
         detail: JSON.stringify(e)
       }
       dialog.showMessageBox(mainWindow, options, (response) => {
@@ -592,7 +575,7 @@ function SetMenuAction(value) {
     mainMenuTemplate[0].submenu[2].enabled = value;
   }
 
-  //If we are waiting, configuration options can be changed.....but if not waiting, they cannot.
+  //If we are waiting, configuration settings can be changed.....but if not waiting, they cannot.
   if (waiting) {
     mainMenuTemplate[0].submenu[0].enabled = true;
   }
@@ -664,13 +647,26 @@ function getAlmaPrinters(){
           return;
         }
         almaPrinters = JSON.parse(data);
+        if (almaPrinters != null) {
+          if (almaPrinters.total_record_count == 0) {
+            const options = {
+              type: 'error',
+              buttons: ['Close'],
+              title: 'Configuration Error',
+              message: 'There are no Alma printout queues for the supplied API key. Please check your configuration.'
+            }
+            dialog.showMessageBox(mainWindow, options, (response) => {
+              console.log('The response is ' + response);
+            })
+          }
+        }
       })
     }).on('error', (e) => {
       const options = {
         type: 'error',
         buttons: ['Close'],
         title: 'Communication Error',
-        message: 'An error occurred requesting available Alma printer queues. Please check your Alma configuration options and try again.',
+        message: 'An error occurred requesting available Alma printout queues. Please check your Alma Print Daemon configuration settings and try again.',
         detail: JSON.stringify(e)
       }
       dialog.showMessageBox(mainWindow, options, (response) => {
