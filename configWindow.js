@@ -172,9 +172,7 @@ function testApiKey(){
 
 //Handle loading Alma printers
 ipcRenderer.on('alma-printers', (event, almaPrinters) => {
-	if (configSettings.apiKey.length > 0) {
-		loadAlmaPrinters(almaPrinters);
-	}
+	loadAlmaPrinters(almaPrinters);
 })
 
 //Function that communicates with Alma to get the Alma printers.
