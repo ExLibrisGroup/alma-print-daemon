@@ -29,13 +29,18 @@ let docIndex = 0;
 let almaHost;
 let localPrinterList ;
 let almaPrinters;
+let menuOffset = 0;
 let configFile =  app.getPath("userData") + "/alma-print-config.json";
 
 console.log ('Config file = ' + configFile);
 
+//Set up macOS-specific stuff
 const isMac = process.platform === 'darwin';
 console.log ('isMac = ' + isMac);
-
+if (isMac) {
+  menuOffset = 1;
+}
+ 
 function createWindow () {
 
   // Create the browser window.
@@ -318,15 +323,6 @@ function loadConfiguration(){
 
 function setMenus(){
   console.log ('in setMenus');
-
-  if (configSettings.interval == 0) {
-    mainMenuTemplate[0].submenu[1].visible = true;
-    mainMenuTemplate[0].submenu[2].visible = false;
-  }
-  else {
-    mainMenuTemplate[0].submenu[1].visible = false;
-    mainMenuTemplate[0].submenu[2].visible = true;
-  }
   
   if (isMac) {
     mainMenuTemplate.unshift ({
@@ -343,6 +339,15 @@ function setMenus(){
         {role: 'quit'}
       ]
     })
+
+    if (configSettings.interval == 0) {
+      mainMenuTemplate[menuOffset].submenu[1].visible = true;
+      mainMenuTemplate[menuOffset].submenu[2].visible = false;
+    }
+    else {
+      mainMenuTemplate[menuOffset].submenu[1].visible = false;
+      mainMenuTemplate[menuOffset].submenu[2].visible = true;
+    }
   }
   
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
@@ -353,12 +358,12 @@ function resetMenus(){
   console.log ('in resetMenus');
 
   if (configSettings.interval == 0) {
-    mainMenuTemplate[0].submenu[1].visible = true;
-    mainMenuTemplate[0].submenu[2].visible = false;
+    mainMenuTemplate[menuOffset].submenu[1].visible = true;
+    mainMenuTemplate[menuOffset].submenu[2].visible = false;
   }
   else {
-    mainMenuTemplate[0].submenu[1].visible = false;
-    mainMenuTemplate[0].submenu[2].visible = true;
+    mainMenuTemplate[menuOffset].submenu[1].visible = false;
+    mainMenuTemplate[menuOffset].submenu[2].visible = true;
   }
   
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
@@ -367,26 +372,25 @@ function resetMenus(){
 
 function setPrintingStatus(){
   console.log ('in setPrintingStatus');
-
   //Currently printing, so now set to paused since user clicked pause printing.
   if (printing) {
     console.log ('Paused printing...timer cleared.');
     printing = false;
-    mainMenuTemplate[0].submenu[2].label = 'Continue printing';
-    mainMenuTemplate[0].submenu[2].enabled = true;
+    mainMenuTemplate[menuOffset].submenu[2].label = 'Continue printing';
+    mainMenuTemplate[menuOffset].submenu[2].enabled = true;
     //clear the timer since user has paused printing
     clearTimeout (timer);
     loadPage('docsPrintIntervalPaused.html');
     //Enable "File|Configuration..." menu option....things can be changed while printing is paused.
-    mainMenuTemplate[0].submenu[0].enabled = true;
+    mainMenuTemplate[menuOffset].submenu[0].enabled = true;
   }
   //Currently paused, so now set to printing since user clicked continue printing.
   else {
     console.log ('Continued printing...')
     printing = true
-    mainMenuTemplate[0].submenu[2].label = 'Pause printing';
+    mainMenuTemplate[menuOffset].submenu[2].label = 'Pause printing';
     //Disable "File|Configuration..." menu option....things can't be changed while printing.
-    mainMenuTemplate[0].submenu[0].enabled = false;
+    mainMenuTemplate[menuOffset].submenu[0].enabled = false;
     getDocuments(0);
   }
 
@@ -395,10 +399,10 @@ function setPrintingStatus(){
 }
 
 function setManualPrintingConfigMenuStatus(value) {
-      //Enable "File|Configuration..." menu option....things can be changed while printing is paused.
-      mainMenuTemplate[0].submenu[0].enabled = value;
-      const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
-      Menu.setApplicationMenu (mainMenu);
+  //Enable "File|Configuration..." menu option....things can be changed while printing is paused.
+  mainMenuTemplate[menuOffset].submenu[0].enabled = value;
+  const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
+  Menu.setApplicationMenu (mainMenu);
 }
 
 //Function to control if documents should be requested when the timer hits
@@ -567,20 +571,20 @@ function loadPage(page) {
 function SetMenuAction(value) {
   console.log ("in SetMenuAction");
   if (configSettings.interval == 0) {
-    console.log (mainMenuTemplate[0].submenu[1].label + " = " + value);
-    mainMenuTemplate[0].submenu[1].enabled = value;
+    console.log (mainMenuTemplate[menuOffset].submenu[1].label + " = " + value);
+    mainMenuTemplate[menuOffset].submenu[1].enabled = value;
   }
   else {
-    console.log (mainMenuTemplate[0].submenu[2].label + " = " + value);
-    mainMenuTemplate[0].submenu[2].enabled = value;
+    console.log (mainMenuTemplate[menuOffset].submenu[2].label + " = " + value);
+    mainMenuTemplate[menuOffset].submenu[2].enabled = value;
   }
 
   //If we are waiting, configuration settings can be changed.....but if not waiting, they cannot.
   if (waiting) {
-    mainMenuTemplate[0].submenu[0].enabled = true;
+    mainMenuTemplate[menuOffset].submenu[0].enabled = true;
   }
   else {
-    mainMenuTemplate[0].submenu[0].enabled = false;
+    mainMenuTemplate[menuOffset].submenu[0].enabled = false;
   } 
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
   Menu.setApplicationMenu (mainMenu);
