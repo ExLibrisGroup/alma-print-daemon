@@ -339,15 +339,15 @@ function setMenus(){
         {role: 'quit'}
       ]
     })
+  }
 
-    if (configSettings.interval == 0) {
-      mainMenuTemplate[menuOffset].submenu[1].visible = true;
-      mainMenuTemplate[menuOffset].submenu[2].visible = false;
-    }
-    else {
-      mainMenuTemplate[menuOffset].submenu[1].visible = false;
-      mainMenuTemplate[menuOffset].submenu[2].visible = true;
-    }
+  if (configSettings.interval == 0) {
+    mainMenuTemplate[menuOffset].submenu[1].visible = true;
+    mainMenuTemplate[menuOffset].submenu[2].visible = false;
+  }
+  else {
+    mainMenuTemplate[menuOffset].submenu[1].visible = false;
+    mainMenuTemplate[menuOffset].submenu[2].visible = true;
   }
   
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
