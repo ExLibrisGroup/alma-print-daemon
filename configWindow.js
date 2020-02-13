@@ -172,7 +172,10 @@ function testApiKey(){
 
 //Handle loading Alma printers
 ipcRenderer.on('alma-printers', (event, almaPrinters) => {
-	loadAlmaPrinters(almaPrinters);
+	if (document.getElementById('apiKey').value.length > 0) {
+		console.log ('We have an API key....get Alma printers');
+		loadAlmaPrinters(almaPrinters);
+	}
 })
 
 //Function that communicates with Alma to get the Alma printers.
