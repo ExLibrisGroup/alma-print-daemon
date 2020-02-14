@@ -6,9 +6,11 @@ The extension's configuration settings include:
 - region (Asia Pacific, Canada, China, Europe, North America)
 - API key (read permission for Configuration, read/write permissions for Task-lists
 - Alma Printer Queues from which to print
-- Local Printer (workstation default printer is the implied default)
+- Local Printer (workstation default printer is the default)
 - Automatic interval printing (in minutes) or manual on-demand printing
 
-Microsoft Windows version available initially, Macintosh version planned to follow.
+Requires at least Alma March 2020 release.
 
-https://github.com/ExLibrisGroup/alma-print-daemon/releases/download/v0.5.2-alpha/alma-print-daemon-Setup-0.5.2-alpha.exe
+Microsoft Windows and macOS versions available.
+
+https://github.com/ExLibrisGroup/alma-print-daemon/releases/
