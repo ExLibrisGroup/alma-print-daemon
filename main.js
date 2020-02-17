@@ -156,8 +156,9 @@ function createConfigWindow() {
     width: 500,
     height: 525,
     title: "Configuration",
+    parent: mainWindow,
     modal: true,
-    resizeable: false,
+    resizable: false,
     minimizable: false,
     maximizable: false,
     webPreferences: {
