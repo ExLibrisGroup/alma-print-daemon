@@ -180,8 +180,14 @@ function createConfigWindow() {
     configWindow.webContents.send('alma-printers', almaPrinters);
   })
   //configWindow.removeMenu();
-  configWindow.on('close', function(){
-    configWindow = null
+  configWindow.on('close', function(event){
+    //Not sure why this fixes a macOS-specific crash, but it does...and we still get the behavior we want.
+    if (isMac) {
+      event.preventDefault();
+    }
+    else {
+      configWindow = null;
+    }
   })
 }
 
@@ -327,7 +333,7 @@ function setMenus(){
   
   if (isMac) {
     mainMenuTemplate.unshift ({
-      label: app.getName(),
+      label: app.name,
       submenu: [
         {role: 'about'},
         {type: 'separator'},
