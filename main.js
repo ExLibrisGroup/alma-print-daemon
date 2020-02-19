@@ -300,42 +300,7 @@ const mainMenuTemplate = [
   },
   {
     label: 'Edit',
-    visible: false,
-    submenu: [
-      {
-        label: "Undo",
-        accelerator: "CmdOrCtrl+Z",
-        selector: "undo:"
-      },
-      {
-        label: "Redo",
-        accelerator: "Shift+CmdOrCtrl+Z",
-        selector: "redo:"
-      },
-      {
-        type: "separator"
-      },
-      {
-        label: "Cut",
-        accelerator: "CmdOrCtrl+X",
-        selector: "cut:"
-       },
-      {
-        label: "Copy",
-        accelerator: "CmdOrCtrl+C",
-        selector: "copy:"
-      },
-      {
-        label: "Paste",
-        accelerator: "CmdOrCtrl+V",
-        selector: "paste:"
-      },
-      {
-        label: "Select All",
-        accelerator: "CmdOrCtrl+A",
-        selector: "selectAll:"
-      }
-    ]
+    role: 'editMenu'
   }
 ]
 
@@ -385,8 +350,6 @@ function setMenus(){
         {role: 'quit'}
       ]
     })
-    //Make the "Edit" menu visible, only for macOS.
-    mainMenuTemplate[menuOffset + 1].visible = true;
   }
 
   if (configSettings.interval == 0) {
