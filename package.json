@@ -10,6 +10,18 @@
     "type": "git",
     "url": "https://github.com/ExLibrisGroup/alma-print-daemon.git"
   },
+  "mac": {
+    "hardenedRuntime": "true",
+    "gatekeeperAssess": false,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.plist"
+  },
+  "dmg": {
+    "sign": false
+  },
+  "build": {
+    "afterSign": "scripts/notarize.js"
+  },
   "keywords": [
     "Alma",
     "Print"
@@ -22,6 +34,7 @@
   },
   "dependencies": {
     "electron-log": "^4.0.4",
+    "electron-notarize": "^0.2.1",
     "electron-updater": "^4.2.0",
     "electron-window-manager": "^1.0.6",
     "request": "^2.88.0"
