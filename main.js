@@ -19,6 +19,7 @@ let configSettings;
 let printDoc;
 let timer;
 let waiting = true;
+let autoStart = false;
 let printing = false; //set current printing status
 
 let numDocsToPrint = 0;
@@ -67,8 +68,12 @@ function createWindow () {
   mainWindow.webContents.on('did-finish-load', () => {
 
     console.log('In did-finish-load-document');
-    if (waiting) {
+    if (waiting || autoStart) {
       console.log ('Now waiting for next batch, either automatic or manual...');
+      if (autoStart) {
+        autoStart = false;
+        setPrintingStatus();
+      }
       return;
     }
     mainWindow.webContents.print({silent: true, deviceName: configSettings.localPrinter}, function(success){
@@ -147,7 +152,14 @@ function InitializeApp(initialize) {
     setManualPrintingConfigMenuStatus (true);
   }
   else {
-    loadPage('docsPrintIntervalPaused.html');
+    if (configSettings.autoStart == "true") {
+      autoStart = true;
+      console.log ("loading page docsPrintedInterval.html; autoStart = true")
+      loadPage('docsPrintedInterval.html');
+    }
+    else     {
+      loadPage('docsPrintIntervalPaused.html');
+    }
   }
 }
 
@@ -311,7 +323,7 @@ function loadConfiguration(){
   //Check if config file exists.
   if (!fs.existsSync(configFile)) {
     console.log ('config file not found...use defaults');
-    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\"}";
+    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\",\"autoStart\": \"false\"}";
   }
   else {
     console.log ('config file exists...read settings');
@@ -328,6 +340,7 @@ function loadConfiguration(){
   console.log('Alma Printer = ' + configSettings.almaPrinter);
   console.log('Local Printer = ' + configSettings.localPrinter);
   console.log('Interval (minutes) = ' + configSettings.interval);
+  console.log('Auto Start = ' + configSettings.autoStart);
 
   return rc;
 }
@@ -426,6 +439,12 @@ function getDocumentsTimerController() {
 function getDocuments(offset){
 
   console.log ('in getDocuments()');
+
+  if (almaPrinters == null) {
+    console.log ("No alma printers yet.....don't get documents");
+    setDocRequestTimer();
+    return;
+  }
 
   const https = require('https');
   let data = '';
