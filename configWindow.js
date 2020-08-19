@@ -14,6 +14,7 @@ function submitForm(e){
 	const region = document.querySelector('#region').value;
 	const apiKey = document.querySelector('#apiKey').value;
 	const localPrinter = document.querySelector('#localPrinter').value;
+	const autoStart = document.getElementById('autostart');
 	//Set interval based on which method radio button selected:  automatic or manual
 	if (document.querySelector('input[name="method"]:checked').value == "manual") {
 		interval = 0;
@@ -65,7 +66,8 @@ function submitForm(e){
 		configString = configString + "\"almaPrinter\": [" + selectedAlmaPrinters + "],";
 		
 		configString = configString + "\"localPrinter\": \"" + encodeURIComponent(localPrinter) +  "\",";
-		configString = configString + "\"interval\": \"" + interval + "\"}";
+		configString = configString + "\"interval\": \"" + interval + "\",";
+		configString = configString + "\"autoStart\": \"" + autoStart.checked + "\"}";
 		ipcRenderer.send('save-settings', configString);
 	}
 	else {
@@ -84,6 +86,9 @@ ipcRenderer.on('send-settings', (event, configSettings) => {
 	if (configSettings.interval > 0) {
 		document.getElementById('interval').value = configSettings.interval;
 		document.getElementById('methoda').checked = true;
+		if (configSettings.autoStart == "true") {
+			document.getElementById('autostart').checked = true;
+		}
 	}
 	else {
 		document.getElementById('methodm').checked = true;
