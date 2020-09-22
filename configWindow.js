@@ -11,6 +11,7 @@ function submitForm(e){
 	e.preventDefault();
 	let badInterval = false;
 	let interval = 0;
+	let orientation;
 	const region = document.querySelector('#region').value;
 	const apiKey = document.querySelector('#apiKey').value;
 	const localPrinter = document.querySelector('#localPrinter').value;
@@ -67,7 +68,15 @@ function submitForm(e){
 		
 		configString = configString + "\"localPrinter\": \"" + encodeURIComponent(localPrinter) +  "\",";
 		configString = configString + "\"interval\": \"" + interval + "\",";
-		configString = configString + "\"autoStart\": \"" + autoStart.checked + "\"}";
+		configString = configString + "\"autoStart\": \"" + autoStart.checked + "\",";
+
+		if (document.querySelector('input[name="orientation"]:checked').value == "portrait") {
+			orientation = 'portrait';
+		}
+		else {
+			orientation = 'landscape';
+		}
+		configString = configString + "\"orientation\": \"" + orientation + "\"}";
 		ipcRenderer.send('save-settings', configString);
 	}
 	else {
@@ -96,6 +105,12 @@ ipcRenderer.on('send-settings', (event, configSettings) => {
 
 	savedAlmaPrinters = configSettings.almaPrinter;
 	selectedLocalPrinter = configSettings.localPrinter;
+	if (configSettings.orientation == 'portrait') {
+		document.getElementById('portrait').checked = true;
+	}
+	else {
+		document.getElementById('landscape').checked = true;	
+	}
 	console.log ('send-settings selectedLocalPrinter = ' + selectedLocalPrinter);
 })
 

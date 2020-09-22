@@ -1,6 +1,6 @@
 {
   "name": "alma-print-daemon",
-  "version": "1.1.0",
+  "version": "1.2.0-beta",
   "description": "Application which listens for and prints letters from the Ex Libris Alma printout queues.",
   "main": "main.js",
   "scripts": {
@@ -29,7 +29,7 @@
   "author": "Ex Libris, a ProQuest Company",
   "license": "BSD-3-Clause",
   "devDependencies": {
-    "electron": "^7.3.2",
+    "electron": "^9.3.0",
     "electron-builder": "^22.8.0"
   },
   "dependencies": {

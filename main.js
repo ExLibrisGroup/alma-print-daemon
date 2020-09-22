@@ -5,6 +5,7 @@ const ipcRenderer = require('electron').ipcRenderer;
 const path = require('path');
 const url = require('url');
 const fs = require('fs');
+const errLog = require('fs');
 const log = require('electron-log');
 const {autoUpdater} = require('electron-updater');
 
@@ -21,6 +22,7 @@ let timer;
 let waiting = true;
 let autoStart = false;
 let printing = false; //set current printing status
+let printLandscape = false;
 
 let numDocsToPrint = 0;
 let numDocsInBatch = 0;
@@ -76,7 +78,7 @@ function createWindow () {
       }
       return;
     }
-    mainWindow.webContents.print({silent: true, deviceName: configSettings.localPrinter}, function(success){
+    mainWindow.webContents.print({silent: true, landscape: printLandscape, deviceName: configSettings.localPrinter}, function(success){
         if (success) {
            console.log('print success mainWindow');
            let postRequest = printDoc.printout[docIndex].link + '?op=mark_as_printed&apikey=' + configSettings.apiKey;
@@ -166,7 +168,7 @@ function InitializeApp(initialize) {
 function createConfigWindow() {
   configWindow = new BrowserWindow({
     width: 500,
-    height: 525,
+    height: 570,
     title: "Configuration",
     parent: mainWindow,
     modal: true,
@@ -323,7 +325,7 @@ function loadConfiguration(){
   //Check if config file exists.
   if (!fs.existsSync(configFile)) {
     console.log ('config file not found...use defaults');
-    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\",\"autoStart\": \"false\"}";
+    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\",\"autoStart\": \"false\",\"orientation\": \"portrait\"}";
   }
   else {
     console.log ('config file exists...read settings');
@@ -335,10 +337,22 @@ function loadConfiguration(){
   configSettings = JSON.parse(configJSON);
   configSettings.localPrinter = decodeURIComponent(configSettings.localPrinter);
 
+  if (configSettings.orientation == undefined) {
+    configSettings.orientation = 'portrait'
+  }
+
+  if (configSettings.orientation == 'landscape') {
+    printLandscape = true;
+  }
+  else {
+    printLandscape = false;
+  }
   console.log('Region = ' + configSettings.region);
   console.log('API Key = ' + configSettings.apiKey);
   console.log('Alma Printer = ' + configSettings.almaPrinter);
   console.log('Local Printer = ' + configSettings.localPrinter);
+  console.log('Orientation = ' + configSettings.orientation); 
+  console.log('Print Landscape = ' + printLandscape);
   console.log('Interval (minutes) = ' + configSettings.interval);
   console.log('Auto Start = ' + configSettings.autoStart);
 
@@ -478,17 +492,29 @@ function getDocuments(offset){
             let endErrorMessage = data.indexOf("</errorMessage>");
             let errorMessage = data.substring(startErrorMessage, endErrorMessage);
             console.log ("Error message = " + errorMessage);
-            const options = {
-              type: 'error',
-              buttons: ['Close'],
-              title: 'Communication Error',
-              message: errorMessage
-            }
-            dialog.showMessageBox(mainWindow, options, (response) => {
-              console.log('The response is ' + response)
-            })
+            
+            //const options = {
+            //  type: 'error',
+            //  buttons: ['Close'],
+            //  title: 'Communication Error',
+            //  message: errorMessage
+            //}
+            //dialog.showMessageBox(mainWindow, options, (response) => {
+            //  console.log('The response is ' + response)
+            //})
+
+            writeErrorLog (errorMessage);
             waiting = true;
-            setPrintingStatus();
+
+            if (configSettings.interval > 0) {
+              loadPage('docsErrorInterval.html');
+              setDocRequestTimer();
+              SetMenuAction(true);
+            }
+            else {
+              loadPage('docsErrorManual.html');
+              setManualPrintingConfigMenuStatus (true);
+            }
             return;
           }
         }
@@ -536,19 +562,32 @@ function getDocuments(offset){
       })
 
     }).on('error', (e) => {
-      const options = {
-        type: 'error',
-        buttons: ['Close'],
-        title: 'Communication Error',
-        message: 'An error occurred communicating with Alma. Please check your Alma Print Daemon configuration settings and try again.',
-        detail: JSON.stringify(e)
-      }
-      dialog.showMessageBox(mainWindow, options, (response) => {
-        console.log('The response is ' + response);
-      })
+      //const options = {
+      //  type: 'error',
+      //  buttons: ['Close'],
+      //  title: 'Communication Error',
+      //  message: 'An error occurred communicating with Alma.',
+      //  detail: JSON.stringify(e)
+      //}
+
+      //dialog.showMessageBox(mainWindow, options, (response) => {
+      //  console.log('The response is ' + response);
+      //})
+
+      let errorMessage = "An error occurred communicating with Alma:  " + JSON.stringify(e)
+      writeErrorLog (errorMessage)
+
       waiting = true;
-      //SetMenuAction(true);
-      setPrintingStatus();
+      
+      if (configSettings.interval > 0) {
+        loadPage('docsErrorInterval.html');
+        setDocRequestTimer();
+        SetMenuAction(true);
+      }
+      else {
+        loadPage('docsErrorManual.html');
+        setManualPrintingConfigMenuStatus (true);
+      }
     })
 }
 
@@ -565,18 +604,23 @@ function updateDocument(postRequest){
       console.error('error:', error); // Print the error if one occurred
       console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
       //console.log('body:', body); // Print the HTML 
-      const options = {
-        Type: 'error',
-        buttons: ['Close'],
-        title: 'Update Failed',
-        message: 'An error occurred updating the document as printed: ' + postRequest,
-        details: JSON.stringify(error)
-      }
-      dialog.showMessageBox(mainWindow, options, (response) => {
-        console.log('The response is ' + response);
-      })
+      //const options = {
+      //  Type: 'error',
+      //  buttons: ['Close'],
+      //  title: 'Update Failed',
+      //  message: 'An error occurred updating the document as printed: ' + postRequest,
+      //  details: JSON.stringify(error)
+      //}
+
+      //dialog.showMessageBox(mainWindow, options, (response) => {
+      //  console.log('The response is ' + response);
+      //})
+
+      let errorMessage = "An error occurred updating the document as printed:  " + postRequest;
+      writeErrorLog (errorMessage)
+      writeErrorLog (JSON.stringify(error));
     } 
-  } )
+  })
 }
 
 function setDocRequestTimer() {
@@ -596,6 +640,11 @@ function loadPage(page) {
   //  protocal: 'file:',
   //  slashes: true
   //}))
+}
+
+function writeErrorLog (message) {
+  let d = new Date();
+  errLog.appendFileSync('log.alma-print-daemon.' + d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1)  + "-" + d.getUTCDate() ,  "Error on " + d.toISOString() + "':  " + message + "\n");
 }
 
 function SetMenuAction(value) {
