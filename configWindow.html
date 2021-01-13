@@ -1,59 +1,101 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Configuration</title>
-  </head>
-  <body>
-	<form>
-	  <div>
-		  <label>Region:</label>
-		  <select id="region">
-			<option value="ap" selected="selected">Asia Pacific</option>
-			<option value="ca">Canada</option>
-			<option value="cn">China</option>
-			<option value="eu">Europe</option>
-			<option value="na">North America</option>
-		  </select>
-	  </div>
-	  <br>
-	  <div>
-		<label>API key with read permission for the Configuration area, and read/write permissions for the Task-Lists area:</label>
-		<input type="password" id="apiKey" size="50">&nbsp;<br><button type="button" onclick="javascript:getAlmaPrinters()">Test - Get Alma Printout Queues</button>
-	  </div>
-	  
-	  <br>
-	  <div>
-		<label>Alma Printout Queue(s):</label>
-		<select id = "almaPrinter"
-			multiple = "multiple"
-			size = "5"
-			style="width: 450px;">
-		</select>
-	  </div>
-	  <br>
-	  <div>
-		<label>Local Printer:</label>
-		<select id = "localPrinter"
-			size = "5"
-			style="width: 450px;">
-		</select>
-	  </div>
-	  <br>
-	  <div>
-		<input type="radio" id="portrait" name="orientation" value="portrait" checked="checked">Portrait
-		<input type="radio" id="landscape" name="orientation" value="landscape">Landscape<br><br>
-	  </div>
-	  <div>
-		  <input type="radio" id="methoda" name="method" value="auto" checked="checked">Automatic printing &emsp; Interval in minutes:<input type="text" id="interval" size=3><br>
-		  <input type="radio" id="methodm" name="method" value="manual">Manual printing<br>
-		  <input type="checkbox" id="autostart" name="autostart">Auto Start (Automatic printing only)<br>	 
-	  </div>
-	  <br>
-	  <button type="submit">Save</button>
-	  <button type="button" onclick="javascript:window.close()">Cancel</button>
-
-	</form>
-  </body>
-  <script src="./configWindow.js"></script>
+	<head>
+    	<meta charset="UTF-8">
+		<title>Alma Print Daemon - Configuration</title>
+		<style>
+			#container {
+  				width: 575px;
+  				height: 500x;
+  				position: relative;
+			}
+			#profilelist,
+			#addprofile {
+  				width: 100%;
+  				height: 100%;
+  				position: absolute;
+  				top: 0;
+  				left: 0;
+			}	
+			#infoi {
+  				z-index: 10;
+			}		
+		</style>
+	</head>
+  	<body>
+		<form>
+		  <div id="settings">
+	  		<div id="regionSetting">
+		  		<label>Region:</label>
+		  		<select id="region">
+					<option value="ap" selected="selected">Asia Pacific</option>
+					<option value="ca">Canada</option>
+					<option value="cn">China</option>
+					<option value="eu">Europe</option>
+					<option value="na">North America</option>
+		  		</select>
+	  		</div>
+	  		<br>
+	  		<div id="apiKeySetting">
+				<label>API key with read permission for the Configuration area, and read/write permissions for the Task-Lists area:</label>
+				<br>
+				<input type="password" id="apiKey" size="50">&emsp;<button type="button" onclick="javascript:testAPIKey()">Test API Key</button>
+	  		</div>
+	  		<br>
+	  		<div id="intervalSettings">
+				<input type="radio" id="methoda" name="method" value="auto" checked="checked" onclick="javascript:disableAutomaticOptions(false)">Automatic printing
+				&emsp; <input type="radio" id="methodm" name="method" value="manual" onclick="javascript:disableAutomaticOptions(true)">Manual printing<br>
+				Interval in minutes (ie: .25, 1, 1.5, 5):<input type="text" id="interval" size=3>
+				&emsp; <input type="checkbox" id="autostart" name="autostart">Auto Start <br>
+			  </div>
+		  </div>
+			<br>
+	  		<div id="container">
+				<div id="addprofile" >
+						<div id ="newPrinterProfile" style="display:none; overflow:auto; height:250px; border:1px solid black; padding-left:15px">
+							<br>
+							<label>Select Alma Printer Queue(s):</label>
+							<select id = "almaPrinter"
+								multiple = "multiple"
+								size = "3"
+								style="width: 545px"
+								onclick="javascript:setAddOKButtonState()">
+							</select>
+							<br>
+							<br>
+							<label>Select Local/Network Printer:</label>
+							<select id = "localPrinter"
+								size = "1"
+								style="width: 545px;">
+							</select>
+							<br><br>
+							<input type="radio" id="portrait" name="orientation" value="portrait" checked="checked">Portrait
+							&emsp;<input type="radio" id="landscape" name="orientation" value="landscape">Landscape
+							<br>
+							<input type="radio" id="color" name="color" value="true" checked="checked">Color
+							&emsp;<input type="radio" id="grayscale" name="color" value="false" >Grayscale
+							<br><br>
+							<button type="button" id="addOK" onclick="javascript:savePrinterProfile()">OK</button>
+							<button type="button" id="addCancel" onclick="javascript:showPrinterProfiles()">Cancel</button>
+						</div>
+		  		</div>	
+	  	  		<div id="profilelist">
+					<label>Printer Profiles:</label>
+					<div id="printerProfiles" style="overflow:auto; height:250px; border:1px solid black; padding-left:10px">
+					</div>
+					<br>
+					<button type="button" id="addPrinterProfileButton" disabled="true" onclick="javascript:addPrinterProfile()">Add Printer Profile</button>
+					<button type="button" id="removePrinterProfileButton" disabled="true" onclick="javascript:removePrinterProfile()">Remove Printer Profile</button>
+					&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;<button type="submit">Save</button>
+					<button type="button" id="cancelSettings" onclick="javascript:window.close()">Cancel</button>
+					<!--
+					<br>
+					<input type='text' id='message' size=50>
+					<br>
+					-->
+		  		</div>
+			</div>
+		</form>
+  	</body>
+	<script src="./configWindow.js"></script>
 </html>
