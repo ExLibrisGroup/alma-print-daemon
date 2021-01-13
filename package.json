@@ -23,7 +23,7 @@
     "nsis": {
       "runAfterFinish": "false",
       "oneClick": "false",
-      "perMachine": "true"
+      "perMachine": "false"
     },
     "afterSign": "scripts/notarize.js"
   },
