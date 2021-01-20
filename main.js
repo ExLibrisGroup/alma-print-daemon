@@ -663,7 +663,7 @@ function loadPage(page) {
 
 function writeErrorLog (message) {
   let d = new Date();
-  errLog.appendFileSync('log.alma-print-daemon.' + d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1)  + "-" + d.getUTCDate() ,  "Error on " + d.toISOString() + "':  " + message + "\n");
+  errLog.appendFileSync(app.getPath("userData") + '/log.alma-print-daemon.' + d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1)  + "-" + d.getUTCDate() ,  "Error on " + d.toISOString() + "':  " + message + "\n");
 }
 
 function SetMenuAction(value) {
