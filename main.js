@@ -550,32 +550,52 @@ function getDocuments(offset){
         //clear the timer since we are currently processing documents
         console.log ('processing documents....clear timer');
         clearTimeout (timer);
-        printDoc = JSON.parse(data);
-        if (printDoc.total_record_count == 0) {
-          console.log ("No documents in response...set printing status page appropriately");
+        try {
+          printDoc = JSON.parse(data);
+        }
+        catch {
+          writeErrorLog ("Error parsing documents in response from Alma.  Reset to try again.");
           setPrintingStatusPage();
           return;
         }
-        console.log ("Parsed JSON response...now start printing");
-        if (printDoc.printout.length > 0) {
-          //If an offset was passed in, we are in the middle of processing a batch of documents...don't reset the number of docs to print
-          if (offset == 0) {
-            numDocsToPrint = printDoc.total_record_count;
+        try {
+          if (printDoc.total_record_count == 0) {
+            console.log ("No documents in response...set printing status page appropriately.");
+            setPrintingStatusPage();
+            return;
           }
-          numDocsInBatch = printDoc.printout.length;
-          numDocsInBatchCountdown = numDocsInBatch;
-          console.log('number of documents total = ' + numDocsToPrint); 
-          console.log('number of documents in request response = ' + numDocsInBatch);
-          console.log('load document #' + docIndex);
-          console.log ("Should we get local printer settings?  lastAlmaPrinter = " + lastAlmaPrinter + ", next Alma Printer = " + printDoc.printout[docIndex].printer.value);
-          if (lastAlmaPrinter != printDoc.printout[docIndex].printer.value) {
-            getLocalPrinter(printDoc.printout[docIndex].printer.value);
-          }
-          mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docIndex].letter));
-          AdjustIterators();
         }
-        else {
-          console.log ("No documents in response...set printing status page appropriately");
+        catch{
+          writeErrorLog ("No documents in response...set printing status page appropriately.");
+          setPrintingStatusPage();
+          return;  
+        }
+        console.log ("Parsed JSON response...now start printing");
+        try {
+          if (printDoc.printout.length > 0) {
+            //If an offset was passed in, we are in the middle of processing a batch of documents...don't reset the number of docs to print
+            if (offset == 0) {
+              numDocsToPrint = printDoc.total_record_count;
+            }
+            numDocsInBatch = printDoc.printout.length;
+            numDocsInBatchCountdown = numDocsInBatch;
+            console.log('number of documents total = ' + numDocsToPrint); 
+            console.log('number of documents in request response = ' + numDocsInBatch);
+            console.log('load document #' + docIndex);
+            console.log ("Should we get local printer settings?  lastAlmaPrinter = " + lastAlmaPrinter + ", next Alma Printer = " + printDoc.printout[docIndex].printer.value);
+            if (lastAlmaPrinter != printDoc.printout[docIndex].printer.value) {
+              getLocalPrinter(printDoc.printout[docIndex].printer.value);
+            }
+            mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docIndex].letter));
+            AdjustIterators();
+          }
+          else {
+            console.log ("No documents in response...set printing status page appropriately");
+            setPrintingStatusPage();
+          }
+        }
+        catch {
+          writeErrorLog ("Error processing a document in response from Alma.  Reset to try again.");
           setPrintingStatusPage();
         }
       })
