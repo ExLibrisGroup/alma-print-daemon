@@ -29,7 +29,7 @@
   "author": "Ex Libris, a ProQuest Company",
   "license": "BSD-3-Clause",
   "devDependencies": {
-    "electron": "^9.3.0",
+    "electron": "^9.4.0",
     "electron-builder": "^22.8.0"
   },
   "dependencies": {
