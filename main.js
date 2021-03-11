@@ -22,7 +22,11 @@ let timer;
 let waiting = true;
 let autoStart = false;
 let printing = false; //set current printing status
-let printLandscape = false;
+let lastAlmaPrinter = 0;
+let useLandscape = false;
+let useColor = false;
+let useLocalPrinter;
+
 
 let numDocsToPrint = 0;
 let numDocsInBatch = 0;
@@ -63,10 +67,10 @@ function createWindow () {
   
   InitializeApp (true);
 
-  if (configSettings.apiKey.length == 0) {
+  if (configSettings.apiKey.length == 0 || configSettings.almaPrinterProfiles.length == 0) {
     createConfigWindow();
   }
-
+  
   mainWindow.webContents.on('did-finish-load', () => {
 
     console.log('In did-finish-load-document');
@@ -78,7 +82,7 @@ function createWindow () {
       }
       return;
     }
-    mainWindow.webContents.print({silent: true, landscape: printLandscape, deviceName: configSettings.localPrinter}, function(success){
+    mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, function(success){
         if (success) {
            console.log('print success mainWindow');
            let postRequest = printDoc.printout[docIndex].link + '?op=mark_as_printed&apikey=' + configSettings.apiKey;
@@ -88,6 +92,10 @@ function createWindow () {
            docIndex++;
            if (docIndex < numDocsInBatch) {
               console.log('load document #' + docIndex);
+              console.log ("Should we get local printer settings?  lastAlmaPrinter = " + lastAlmaPrinter + ", next Alma Printer = " + printDoc.printout[docIndex].printer.value);
+              if (lastAlmaPrinter != printDoc.printout[docIndex].printer.value) {
+                getLocalPrinter(printDoc.printout[docIndex].printer.value);
+              }
               mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docIndex].letter));
               AdjustIterators();
            }
@@ -167,9 +175,9 @@ function InitializeApp(initialize) {
 
 function createConfigWindow() {
   configWindow = new BrowserWindow({
-    width: 500,
-    height: 570,
-    title: "Configuration",
+    width: 600,
+    height: 525,
+    title: "Alma Print Daemon - Configuration",
     parent: mainWindow,
     modal: true,
     resizable: false,
@@ -211,6 +219,8 @@ ipcMain.on('save-settings', function(e, configString){
   // Write JSON Alma config file
   fs.writeFileSync(configFile, configString);
   configWindow.close();
+  //Reset last Alma Printer used as settings for that printer may have changed
+  lastAlmaPrinter = 0;
   // quit and relaunch app to make new settings effective
   //app.relaunch();
   //app.quit();
@@ -282,7 +292,7 @@ const mainMenuTemplate = [
         label: 'Configuration...',
         accelerator: 'CommandOrControl+O',
         click(){
-        createConfigWindow();
+          createConfigWindow();
        }
       },
       {
@@ -324,38 +334,37 @@ function loadConfiguration(){
   let configData;
   //Check if config file exists.
   if (!fs.existsSync(configFile)) {
-    console.log ('config file not found...use defaults');
-    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"almaPrinter\": \"\",\"localPrinter\": \"\",\"interval\": \"5\",\"autoStart\": \"false\",\"orientation\": \"portrait\"}";
+    console.log ('config file not found...create default config file');
+    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"interval\": \"5\",\"autoStart\": \"false\",\"almaPrinterProfiles\": []}";
+    //return false to force display of configuration panel
+    rc = false;
   }
   else {
     console.log ('config file exists...read settings');
     configData = fs.readFileSync(configFile);
+    let configJSON = configData.toString('utf8');
+    configSettings = JSON.parse(configJSON);
+    if (configSettings["almaPrinter"]) {
+      console.log ('Config file must be converted!');
+      convertConfigFile(configJSON);
+      console.log ("Back from converting config file");
+      fs.writeFileSync(configFile, JSON.stringify(configSettings));
+      configData = fs.readFileSync(configFile);
+    }
+    else {
+      console.log ('Config file already be converted!');
+    }
     rc = true;
   }
 
   const configJSON = configData.toString('utf8');
   configSettings = JSON.parse(configJSON);
-  configSettings.localPrinter = decodeURIComponent(configSettings.localPrinter);
 
-  if (configSettings.orientation == undefined) {
-    configSettings.orientation = 'portrait'
-  }
-
-  if (configSettings.orientation == 'landscape') {
-    printLandscape = true;
-  }
-  else {
-    printLandscape = false;
-  }
   console.log('Region = ' + configSettings.region);
   console.log('API Key = ' + configSettings.apiKey);
-  console.log('Alma Printer = ' + configSettings.almaPrinter);
-  console.log('Local Printer = ' + configSettings.localPrinter);
-  console.log('Orientation = ' + configSettings.orientation); 
-  console.log('Print Landscape = ' + printLandscape);
-  console.log('Interval (minutes) = ' + configSettings.interval);
+  console.log('Interval  = ' + configSettings.interval);
   console.log('Auto Start = ' + configSettings.autoStart);
-
+  console.log('Alma Printer Profiles = ' + JSON.stringify(configSettings.almaPrinterProfiles));
   return rc;
 }
 
@@ -464,8 +473,14 @@ function getDocuments(offset){
   let data = '';
 
   let request = almaHost + '/almaws/v1/task-lists/printouts?&status=Pending&apikey=' + configSettings.apiKey + '&limit=100&offset=' + offset + '&format=json';
-  if (configSettings.almaPrinter.length > 0) {
-    request = request + '&printer_id=' + configSettings.almaPrinter;
+  if (configSettings.almaPrinterProfiles.length > 0) {
+    request = request + '&printer_id=';
+    for (let i = 0; i < configSettings.almaPrinterProfiles.length; i++) {
+      if (i > 0) {
+        request = request + ","
+      }
+      request = request + configSettings.almaPrinterProfiles[i].almaPrinter;
+    }
   }
   console.log ("request = " + request);
   docIndex = 0;
@@ -535,28 +550,52 @@ function getDocuments(offset){
         //clear the timer since we are currently processing documents
         console.log ('processing documents....clear timer');
         clearTimeout (timer);
-        printDoc = JSON.parse(data);
-        if (printDoc.total_record_count == 0) {
-          console.log ("No documents in response...set printing status page appropriately");
+        try {
+          printDoc = JSON.parse(data);
+        }
+        catch {
+          writeErrorLog ("Error parsing documents in response from Alma.  Reset to try again.");
           setPrintingStatusPage();
           return;
         }
-        console.log ("Parsed JSON response...now start printing");
-        if (printDoc.printout.length > 0) {
-          //If an offset was passed in, we are in the middle of processing a batch of documents...don't reset the number of docs to print
-          if (offset == 0) {
-            numDocsToPrint = printDoc.total_record_count;
+        try {
+          if (printDoc.total_record_count == 0) {
+            console.log ("No documents in response...set printing status page appropriately.");
+            setPrintingStatusPage();
+            return;
           }
-          numDocsInBatch = printDoc.printout.length;
-          numDocsInBatchCountdown = numDocsInBatch;
-          console.log('number of documents total = ' + numDocsToPrint); 
-          console.log('number of documents in request response = ' + numDocsInBatch);
-          console.log('load document #' + docIndex);
-          mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docIndex].letter));
-          AdjustIterators();
         }
-        else {
-          console.log ("No documents in response...set printing status page appropriately");
+        catch{
+          writeErrorLog ("No documents in response...set printing status page appropriately.");
+          setPrintingStatusPage();
+          return;  
+        }
+        console.log ("Parsed JSON response...now start printing");
+        try {
+          if (printDoc.printout.length > 0) {
+            //If an offset was passed in, we are in the middle of processing a batch of documents...don't reset the number of docs to print
+            if (offset == 0) {
+              numDocsToPrint = printDoc.total_record_count;
+            }
+            numDocsInBatch = printDoc.printout.length;
+            numDocsInBatchCountdown = numDocsInBatch;
+            console.log('number of documents total = ' + numDocsToPrint); 
+            console.log('number of documents in request response = ' + numDocsInBatch);
+            console.log('load document #' + docIndex);
+            console.log ("Should we get local printer settings?  lastAlmaPrinter = " + lastAlmaPrinter + ", next Alma Printer = " + printDoc.printout[docIndex].printer.value);
+            if (lastAlmaPrinter != printDoc.printout[docIndex].printer.value) {
+              getLocalPrinter(printDoc.printout[docIndex].printer.value);
+            }
+            mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDoc.printout[docIndex].letter));
+            AdjustIterators();
+          }
+          else {
+            console.log ("No documents in response...set printing status page appropriately");
+            setPrintingStatusPage();
+          }
+        }
+        catch {
+          writeErrorLog ("Error processing a document in response from Alma.  Reset to try again.");
           setPrintingStatusPage();
         }
       })
@@ -644,7 +683,7 @@ function loadPage(page) {
 
 function writeErrorLog (message) {
   let d = new Date();
-  errLog.appendFileSync('log.alma-print-daemon.' + d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1)  + "-" + d.getUTCDate() ,  "Error on " + d.toISOString() + "':  " + message + "\n");
+  errLog.appendFileSync(app.getPath("userData") + '/log.alma-print-daemon.' + d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1)  + "-" + d.getUTCDate() ,  "Error on " + d.toISOString() + "':  " + message + "\n");
 }
 
 function SetMenuAction(value) {
@@ -756,4 +795,41 @@ function getAlmaPrinters(){
         console.log('The response is ' + response);
       })
     })
+}
+
+function convertConfigFile() {
+  var jsonPrinterProfileObj;
+  var almaPrinterProfiles = [];
+
+  for (let i = 0; i < configSettings.almaPrinter.length; i++) {
+    //Build Alma Printer Profile for each almaPrinter
+    jsonPrinterProfileObj = {almaPrinter: configSettings.almaPrinter[i], localPrinter: configSettings.localPrinter, orientation: configSettings.orientation, color: "true"};
+    almaPrinterProfiles[i] = jsonPrinterProfileObj;
+  }
+  delete configSettings['almaPrinter'];
+  delete configSettings['localPrinter'];
+  delete configSettings['orientation'];
+  configSettings.almaPrinterProfiles = almaPrinterProfiles;
+
+  console.log ("New config file = " + JSON.stringify(configSettings));
+}
+
+function getLocalPrinter(almaPrinter) {
+  console.log ("in getLocalPrinter");
+  //Save last Alma printer so we don't come here to get local printer settings for each document if not necessary
+  lastAlmaPrinter = almaPrinter;
+  for (let i = 0; configSettings.almaPrinterProfiles.length; i++) {
+    if (configSettings.almaPrinterProfiles[i].almaPrinter == almaPrinter) {
+      useColor = configSettings.almaPrinterProfiles[i].color;
+      useLocalPrinter = decodeURIComponent(configSettings.almaPrinterProfiles[i].localPrinter);
+      if (configSettings.almaPrinterProfiles[i].orientation == "landscape") {
+        useLandscape = true;
+      }
+      else {
+        useLandscape = false;
+      }
+      break;
+    }
+  }
+  console.log ("Local printer settings:  useLandscape = " + useLandscape + " useColor = " + useColor + " useLocalPrinter = " + useLocalPrinter);
 }

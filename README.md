@@ -5,8 +5,7 @@ The extension's configuration settings include:
 
 - region (Asia Pacific, Canada, China, Europe, North America)
 - API key (read permission for Configuration, read/write permissions for Task-lists
-- Alma Printer Queues from which to print
-- Local Printer (workstation default printer is the default)
+- Alma Printer Profiles, associating Alma Printer Queues to be serviced by local and/or network printers
 - Automatic interval printing (in minutes, decimals allowed) or manual on-demand printing
 
 Requires at least Alma March 2020 release.
