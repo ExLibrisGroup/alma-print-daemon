@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Alma Print Daemon</title>
+	</head>
 <style>
 #notification {
   position: fixed;
@@ -19,7 +23,10 @@
 	<form>
 	<h4>
 	Printing is paused.<br>
-	Click <button type=submit>Continue printing</button> to start printing again.
+	<button type=submit>Continue printing</button>
+	<br>
+	<br>
+	<button type="button" id="displayConfig" onclick="javascript:displayConfigPage()"> Update Configuration</button>
 	</h4>
 	<div id="notification" class="hidden">
 		<p id="message"></p>
@@ -40,6 +47,10 @@
 			function submitForm(e){
 				e.preventDefault();
 				ipcRenderer.send('print-continue');
+			}
+
+			function displayConfigPage() {
+				ipcRenderer.send('display-config');
 			}
 
 			const notification = document.getElementById('notification');

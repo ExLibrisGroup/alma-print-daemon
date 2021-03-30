@@ -1,6 +1,5 @@
 const ipcRenderer = require('electron').ipcRenderer;
-const {dialog, BrowserWindow} = require('electron').remote;
-const me = require('electron').remote.getCurrentWindow()
+const {dialog} = require('electron').remote;
 let selectedLocalPrinter;	
 let almaPrinterProfiles;
 let displayName;
@@ -13,6 +12,7 @@ form.addEventListener('submit', submitForm);
 
 //Handle saving of updated alma print daemon settings
 function submitForm(e){
+	//document.getElementById("message").value = 'In submitForm';
 	e.preventDefault();
 	let badInterval = false;
 	let interval = 0;
@@ -51,6 +51,7 @@ function submitForm(e){
 	}
 	//If all required config values entered, it is ok to save.
 	if (apiKey.length  && !badInterval && almaPrinterProfiles.length > 0) {
+
 		var configString = "{\"region\": \"" + region + "\",";
 		configString = configString + "\"apiKey\": \"" + apiKey + "\",";
 		configString = configString + "\"interval\": \"" + interval + "\",";
@@ -58,7 +59,7 @@ function submitForm(e){
 		configString = configString + "\"almaPrinterProfiles\":";
 		configString = configString + JSON.stringify(almaPrinterProfiles);
 		configString = configString + "}";
-		me.closable = true;
+		//document.getElementById("message").value = 'Send save-settings:  ' + configString;
 		ipcRenderer.send('save-settings', configString);
 	}
 	else {
@@ -70,6 +71,7 @@ function submitForm(e){
 
 //Handle loading of alma print daemon settings
 ipcRenderer.on('send-settings', (event, configSettings) => {
+	//document.getElementById("message").value = 'In send-settings';
 	let element = document.getElementById('region');
 	element.value = configSettings.region;
 	document.getElementById('apiKey').value = configSettings.apiKey;
@@ -91,6 +93,7 @@ ipcRenderer.on('send-settings', (event, configSettings) => {
 
 //Handle loading local workstation printers
 ipcRenderer.on('local-printers', (event, localPrinters) => {
+	//document.getElementById("message").value = 'In local-printers';
 	let i = 0;
 	var sel = document.getElementById('localPrinter');
 	console.log ('local-printers selectedLocalPrinter = ' + selectedLocalPrinter);
@@ -117,6 +120,7 @@ ipcRenderer.on('local-printers', (event, localPrinters) => {
 
 //Handle loading Alma printers
 ipcRenderer.on('alma-printers', (event, almaPrinters) => {
+	//document.getElementById("message").value = 'In alma-printers:  ' & almaPrinters;
 	if (document.getElementById('apiKey').value.length > 0) {
 		globalAlmaPrinters = almaPrinters;
 		almaPrintersAvailable();
@@ -128,24 +132,21 @@ ipcRenderer.on('alma-printers', (event, almaPrinters) => {
 	}
 	if (document.getElementById('apiKey').value.length == 0 || almaPrinterProfiles.length == 0) {
 		document.getElementById("cancelSettings").disabled = true;
-		me.closable = false;
-	}
-	else {
-		me.closable = true;
 	}
 })
 
 //Function that communicates with Alma to get the Alma printers.
 function getAlmaPrinters() {
     console.log ('in getAlmaPrinters()');
+	//document.getElementById("message").value = 'In getAlmaPrinters';
 	const region = document.querySelector('#region').value;
 	const apiKey = document.querySelector('#apiKey').value;
 	const https = require('https');
 	let data = '';
 
-  	let request = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/printers?apikey=" + apiKey  + '&printout_queue=true&limit=100&format=json';
+	let request = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/printers?apikey=" + apiKey  + '&printout_queue=true&limit=100&format=json';
 	console.log ("request = " + request);
-  
+	//document.getElementById("message").value = request;
 	https.get(
 	  request, (resp) =>{
 		// A chunk of data has been received.
@@ -426,6 +427,7 @@ function updatePrinterSettings () {
 }
 
 function testAPIKey () {
+	//document.getElementById("message").value = 'In testAPIKey';
 	getAlmaPrinters();
 }
 
@@ -440,4 +442,9 @@ function enableDisableSettings (divId, value) {
 function disableAutomaticOptions(value) {
 	document.getElementById("interval").disabled = value;
 	document.getElementById("autostart").disabled = value;
+}
+
+function resumePrinting(){
+	//document.getElementById("message").value = 'in resumePrinting';	
+	ipcRenderer.send('print-continue');
 }

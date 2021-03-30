@@ -1,10 +1,17 @@
 <!DOCTYPE html>
 <html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Alma Print Daemon</title>
+	</head>
   <body>
 	<form>
 	<h4>
 	All requested Alma documents printed. Waiting to request next batch...<br>
-	Click <button type=submit>Pause printing</button> to pause printing.
+	<button type=submit>Pause printing</button>
+	<br>
+	<br>
+	<button type="button" id="displayConfig" onclick="javascript:displayConfigPage()"> Update Configuration</button>
 	</h4>
 	<script>
 			const electron = require('electron');
@@ -16,6 +23,10 @@
 			function submitForm(e){
 				e.preventDefault();
 				ipcRenderer.send('print-pause');
+			}
+
+			function displayConfigPage() {
+				ipcRenderer.send('display-config');
 			}
 		</script>
 	</form>

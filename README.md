@@ -1,5 +1,7 @@
 # alma-print-daemon
-The Alma Print Daemon is an Alma extension that helps you to automatically print letters and slips from the Alma Printout Queues.  With this new print daemon extension there is no need to use email based printing.  It will also automatically update itself when new versions are available for easy management and upkeep.
+The Alma Print Daemon is an Alma extension that helps you to automatically print letters and slips from the Alma Printout Queues.  With this print daemon extension there is no need to use email based printing.  It will also automatically update itself when new versions are available for easy management and upkeep.
+
+The application may be installed as a service on a Windows workstation using nssm (https://nssm.cc/).  
 
 The extension's configuration settings include:
 
