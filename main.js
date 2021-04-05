@@ -281,7 +281,7 @@ function initConfiguration() {
     console.log ('Writing config values to log');
     let d = new Date();
     WriteLog ('******************************************************');
-    WriteLog ('Alma Print Service startup at ' + d.toISOString() + '.');
+    WriteLog ('Alma Print Daemon/Service startup at ' + d.toISOString() + '.');
     WriteLog ('Configuration Parameters:');
     WriteLog ('Region = ' + configSettings.region);
     //WriteLog ('API Key = ' + configSettings.apiKey);
@@ -303,7 +303,6 @@ function initConfiguration() {
         useAlmaPrinters = useAlmaPrinters + configSettings.almaPrinterProfiles[i].almaPrinter;
       }
     }
-    WriteLog('Auto Start = ' + configSettings.autoStart);
     process.env.ALMA_APIKEY = configSettings.apiKey;
     process.env.ALMA_APIPATH = 'https://api-' + configSettings.region + '.hosted.exlibrisgroup.com/almaws/v1';
     //WriteLog ("from initConfiguration, setting API_KEY = " + process.env.ALMA_APIKEY);
