@@ -262,7 +262,7 @@ autoUpdater.on('update-downloaded', () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', function() {
   createWindow();
-  autoUpdater.allowPrerelease = true;
+  autoUpdater.allowPrerelease = false;
   autoUpdater.checkForUpdatesAndNotify();
 })
 
