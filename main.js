@@ -8,6 +8,11 @@ const edge = require('electron-edge-js');
 //const { printFile } = require('./lib/print');
 const printer = require('node-native-printer');
 const ipcMain = require('electron').ipcMain;
+const log = require('electron-log');
+const {autoUpdater} = require('electron-updater');
+
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'silly';
 
 let timer;
 let configFile;
@@ -125,6 +130,20 @@ if (isMac) {
   menuOffset = 1;
 }
 
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log ("!!!!!!!!!Duplicate instance!!!!!!!!!")
+  app.quit();
+} 
+else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    } 
+  })
+}
+
 //WriteLog ("at startup APIKEY = " + process.env.ALMA_APIKEY);
 //WriteLog ("at startup APIPATH = " + process.env.ALMA_APIPATH);
 console.log ('Arguments = ' + process.argv);
@@ -164,7 +183,7 @@ function createWindow () {
       width: 600,
       height: 595,
       show: true,
-      title: "Alma Print Daemon",
+      title: "Alma Print Daemon 2.0-beta-02",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -191,6 +210,9 @@ function createWindow () {
       })
     }
     else if (!service) {
+      //If not running as a service, we can check for updates.
+      autoUpdater.allowPrerelease = false;
+      autoUpdater.checkForUpdatesAndNotify();
       //If manual requesting...
       if (configSettings.interval == 0) {
         mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
@@ -372,6 +394,18 @@ ipcMain.on('display-config', function (e){
   displayConfigPage();
 }) 
 
+ipcMain.on('restart_app', () => {
+  autoUpdater.quitAndInstall();
+});
+
+autoUpdater.on('update-available', () => {
+  mainWindow.webContents.send('update_available');
+});
+
+autoUpdater.on('update-downloaded', () => {
+  mainWindow.webContents.send('update_downloaded');
+});
+
 function getLocalPrinter(almaPrinter) {
   let i;
   console.log ("in getLocalPrinter");
@@ -393,6 +427,7 @@ function getLocalPrinter(almaPrinter) {
   pdfOptions = {
     format: 'Letter',
     orientation: configSettings.almaPrinterProfiles[i].orientation,
+    border: '.4in',
     script: 'lib\\pdf_a4_portrait.js',
     phantomPath: 'lib\\phantomjs.exe'
     };

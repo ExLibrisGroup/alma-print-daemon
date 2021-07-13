@@ -1,12 +1,13 @@
 {
   "name": "alma-print-daemon",
-  "version": "2.0.0-beta",
+  "version": "2.0.0-beta-02",
   "description": "Alma Print Daemon",
   "main": "main.js",
   "dependencies": {
     "almarestapi-lib": "^1.1.4",
     "async": "^3.2.0",
     "electron-edge-js": "^12.16.3",
+    "electron-log": "^4.3.5",
     "electron-notarize": "^0.2.1",
     "electron-updater": "^4.3.4",
     "html-pdf": "^2.2.0",
