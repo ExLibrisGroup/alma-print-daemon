@@ -10,6 +10,7 @@ const printer = require('node-native-printer');
 const ipcMain = require('electron').ipcMain;
 const log = require('electron-log');
 const {autoUpdater} = require('electron-updater');
+const defaultBorder = ".4"  //This was the hardcoded default pre-2.0.0-beta-03
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'silly';
@@ -34,7 +35,7 @@ let useLocalPrinter;
 let menuOffset = 0;
 
 const getPrinterQueues = async type => 
-  await alma.getp(`/conf/printers?printout_queue=${type}`);
+  await alma.getp(`/conf/printers?printout_queue=${type}&limit=100`);
 
 const getPrintouts = async (printer_id = useAlmaPrinters, limit = 100) => 
   await alma.getp(`/task-lists/printouts?status=Pending${printer_id}&limit=${limit}`);
@@ -111,7 +112,7 @@ const getAlmaPrinters = async () => {
   almaPrinterQueues = await getPrinterQueues('true');
   //WriteLog ("from getAlmaPrinters APIKEY = " + process.env.ALMA_APIKEY);
   //WriteLog ("from getAlmaPrinters APIPATH  = " + process.env.ALMA_APIPATH);
-  console.log ("In GetAlmaPrinters:  " + JSON.stringify(almaPrinterQueues));
+  //console.log ("In getAlmaPrinters async:  " + JSON.stringify(almaPrinterQueues));
 }
 
 // This method will be called when Electron has finished
@@ -183,7 +184,7 @@ function createWindow () {
       width: 600,
       height: 595,
       show: true,
-      title: "Alma Print Daemon 2.0-beta-02",
+      title: "Alma Print Daemon 2.0.0-beta-03",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -197,15 +198,15 @@ function createWindow () {
       mainWindow.loadURL('File://' + __dirname + '\\configWindow.html');
       WriteLog ('After trying to load configWindow.html'); 
       localPrinterList = mainWindow.webContents.getPrinters();
-      console.log (localPrinterList);
+      //console.log (localPrinterList);
       mainWindow.webContents.on('did-finish-load', () => {
-        console.log ('did-finish-load for configWindow');
-        console.log ('Send saved settings to configWindow');
+        //console.log ('did-finish-load for configWindow');
+        //console.log ('Send saved settings to configWindow');
         mainWindow.webContents.send('send-settings', configSettings);
-        console.log ('Send local printers to configWindow');
+        //console.log ('Send local printers to configWindow');
         mainWindow.webContents.send('local-printers', localPrinterList);
-        console.log ('Send alma printers to configWindow');
-        console.log (almaPrinterQueues);
+        //console.log ('Send alma printers to configWindow');
+        //console.log (almaPrinterQueues);
         mainWindow.webContents.send('alma-printers', almaPrinterQueues);
       })
     }
@@ -359,6 +360,11 @@ ipcMain.on('save-settings', function(e, configString){
   //app.quit();
   //Reload configuration
   initConfiguration();
+  if (almaPrinterQueues == undefined) {
+    console.log ('Just saved settings - get alma printer queues, if necessary');
+    getAlmaPrinters();
+  }
+
   setup = false;
   //...and resume printing
   if (configSettings.interval == 0) {
@@ -424,10 +430,31 @@ function getLocalPrinter(almaPrinter) {
       break;
     }
   }
+  let letterFormat, borderUnits, borderTop, borderRight, borderBottom, borderLeft;
+  if (configSettings.almaPrinterProfiles[i].letterFormat == undefined) 
+    letterFormat = 'Letter';
+  else
+    letterFormat = configSettings.almaPrinterProfiles[i].letterFormat;
+
+  if (configSettings.almaPrinterProfiles[i].borderUnits == undefined) 
+    borderUnits = "in";
+  else 
+    borderUnits = configSettings.almaPrinterProfiles[i].borderUnits;
+
+  borderTop = setBorderValue(configSettings.almaPrinterProfiles[i].borderTop) + borderUnits;
+  borderRight = setBorderValue(configSettings.almaPrinterProfiles[i].borderRight) + borderUnits;
+  borderBottom = setBorderValue(configSettings.almaPrinterProfiles[i].borderBottom) + borderUnits;
+  borderLeft = setBorderValue(configSettings.almaPrinterProfiles[i].borderLeft) + borderUnits;
+
   pdfOptions = {
-    format: 'Letter',
+    format: letterFormat,
     orientation: configSettings.almaPrinterProfiles[i].orientation,
-    border: '.4in',
+    border: {
+      top: borderTop,            
+      right: borderRight,
+      bottom: borderBottom,
+      left: borderLeft
+    },
     script: 'lib\\pdf_a4_portrait.js',
     phantomPath: 'lib\\phantomjs.exe'
     };
@@ -440,6 +467,15 @@ function getLocalPrinter(almaPrinter) {
   console.log ("Local printer settings:  useLandscape = " + useLandscape + " useColor = " + useColor + " useLocalPrinter = " + useLocalPrinter);
 }
 
+function setBorderValue (value) {
+  if (value == undefined)
+    return defaultBorder;
+  else if (isNaN(value))
+    return defaultBorder;
+  else
+    return value;
+}
+
 function displayConfigPage() {
 
     //clear timer so request isn't trigered.
@@ -450,15 +486,16 @@ function displayConfigPage() {
     mainWindow.loadURL('File://' + __dirname + '\\configWindow.html');
     WriteLog ('After trying to load configWindow.html'); 
     localPrinterList = mainWindow.webContents.getPrinters();
-    console.log (localPrinterList);
+    //console.log (localPrinterList);
     mainWindow.webContents.on('did-finish-load', () => {
       if (setup) {
-        console.log ('did-finish-load for configWindow');
-        console.log ('Send saved settings to configWindow');
+        //console.log ('did-finish-load for configWindow');
+        //console.log ('Send saved settings to configWindow');
         mainWindow.webContents.send('send-settings', configSettings);
-        console.log ('Send local printers to configWindow');
+        //console.log ('Send local printers to configWindow');
         mainWindow.webContents.send('local-printers', localPrinterList);
-        console.log ('Send alma printers to configWindow');
+        //console.log ('Send alma printers to configWindow');
+        WriteLog('In displayConfigPage, on-did-finish-load, sending Alma Printer Queues = ' + JSON.stringify(almaPrinterQueues));
         mainWindow.webContents.send('alma-printers', almaPrinterQueues);
       }
     })

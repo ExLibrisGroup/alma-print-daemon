@@ -19,7 +19,11 @@
 			}	
 			#infoi {
   				z-index: 10;
-			}		
+			}	
+			.column {
+    		float: left;
+    		width: 50%;
+    		}	
 		</style>
 	</head>
   	<body>
@@ -52,7 +56,7 @@
 			<br>
 	  		<div id="container">
 				<div id="addprofile" >
-						<div id ="newPrinterProfile" style="display:none; overflow:auto; height:250px; border:1px solid black; padding-left:15px">
+						<div id ="newPrinterProfile" style="display:none; overflow:auto; height:350px; border:1px solid black; padding-left:15px">
 							<br>
 							<label>Select Alma Printer Queue(s):</label>
 							<select id = "almaPrinter"
@@ -69,12 +73,65 @@
 								style="width: 545px;">
 							</select>
 							<br><br>
-							<input type="radio" id="portrait" name="orientation" value="portrait" checked="checked">Portrait
-							&emsp;<input type="radio" id="landscape" name="orientation" value="landscape">Landscape
-							<br>
-							<input type="radio" id="color" name="color" value="true" checked="checked">Color
-							&emsp;<input type="radio" id="grayscale" name="color" value="false" >Grayscale
-							<br><br>
+							<div class="row">
+								<div class="column">
+									<label for="letterFormat">Format:</label>
+									<select id = "letterFormat" name="letterFormat"
+										size = "1"
+										style="width: 75px;">
+										<option value="A3">A3</option>
+										<option value="A4">A4</option>
+										<option value="A5">A5</option>
+										<option value="Legal">Legal</option>								
+										<option value="Letter">Letter</option>
+										<option value="Tabloid">Tabloid</option>
+									</select>
+								</div>
+								<div class="column">
+									<label for="borderUnits">Border unit of measure:</label>
+									<select id = "borderUnits" name="borderUnits"
+										size = "1"
+										style="width: 100px;">
+										<option value="mm">millimeters</option>
+										<option value="cm">centimeters</option>
+										<option value="in">inches</option>
+										<option value="px">pixels</option>								
+									</select>
+								</div>
+							</div>
+							<div class="row"><br><br></div>
+							<div class="row">
+								<div class="column">
+									<label for="borderTop">Border Top:</label>
+									<input type="text" id="borderTop" name="borderTop" size="5">
+								</div>
+								<div class="column">
+									<label for="borderRight">Border Right:</label>
+									<input type="text" id="borderRight" name="borderRight" size="5"><br>
+								</div>
+							</div>
+							<div class="row">
+								<div class="column">
+									<label for="borderBottom">Border Bottom:</label>
+									<input type="text" id="borderBottom" name="borderBottom" size="5">
+								</div>
+								<div class="column">
+									<label for="borderLeft">Border Left:</label>
+									<input type="text" id="borderLeft" name="borderLeft" size="5">
+								</div>
+							</div>
+							<div class="row"><br><br><br></div>
+							<div class="row">
+								<div class="column">
+									<input type="radio" id="portrait" name="orientation" value="portrait" checked="checked">Portrait<br>
+									<input type="radio" id="landscape" name="orientation" value="landscape">Landscape
+								</div>
+								<div class="column">	
+									<input type="radio" id="color" name="color" value="true" checked="checked">Color<br>
+									<input type="radio" id="grayscale" name="color" value="false" >Grayscale
+								</div>
+							</div>
+							<br><br><br>
 							<button type="button" id="addOK" onclick="javascript:savePrinterProfile()">OK</button>
 							<button type="button" id="addCancel" onclick="javascript:showPrinterProfiles()">Cancel</button>
 						</div>
@@ -92,9 +149,10 @@
 					<button type="button" id="cancelSettings" onclick="javascript:resumePrinting()">Cancel and Continue Printing</button>
 					
 					<!--
-					<input type='text' id='message' size=50>
+					<input type='text' id='message' size=1000>
 					<br>
 					-->
+				
 
 		  		</div>
 			</div>
