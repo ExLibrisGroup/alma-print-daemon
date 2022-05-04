@@ -1,5 +1,0 @@
-appId: "com.exlibrisgroup.almaprintdaemon"
-publish:
-  provider: "github"
-win:
-  signAndEditExecutable: "true"

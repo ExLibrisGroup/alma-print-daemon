@@ -1,6 +1,6 @@
 const ipcRenderer = require('electron').ipcRenderer;
-const {dialog, BrowserWindow} = require('electron').remote;
-const me = require('electron').remote.getCurrentWindow()
+const {dialog} = require('electron').remote;
+const defaultBorder = ".4"  //This was the hardcoded default pre-2.0.0-beta-03
 let selectedLocalPrinter;	
 let almaPrinterProfiles;
 let displayName;
@@ -13,6 +13,7 @@ form.addEventListener('submit', submitForm);
 
 //Handle saving of updated alma print daemon settings
 function submitForm(e){
+	//document.getElementById("message").value = 'In submitForm';
 	e.preventDefault();
 	let badInterval = false;
 	let interval = 0;
@@ -51,6 +52,7 @@ function submitForm(e){
 	}
 	//If all required config values entered, it is ok to save.
 	if (apiKey.length  && !badInterval && almaPrinterProfiles.length > 0) {
+
 		var configString = "{\"region\": \"" + region + "\",";
 		configString = configString + "\"apiKey\": \"" + apiKey + "\",";
 		configString = configString + "\"interval\": \"" + interval + "\",";
@@ -58,7 +60,7 @@ function submitForm(e){
 		configString = configString + "\"almaPrinterProfiles\":";
 		configString = configString + JSON.stringify(almaPrinterProfiles);
 		configString = configString + "}";
-		me.closable = true;
+		//document.getElementById("message").value = 'Send save-settings:  ' + configString;
 		ipcRenderer.send('save-settings', configString);
 	}
 	else {
@@ -70,6 +72,7 @@ function submitForm(e){
 
 //Handle loading of alma print daemon settings
 ipcRenderer.on('send-settings', (event, configSettings) => {
+	//document.getElementById("message").value = 'In send-settings';
 	let element = document.getElementById('region');
 	element.value = configSettings.region;
 	document.getElementById('apiKey').value = configSettings.apiKey;
@@ -91,6 +94,7 @@ ipcRenderer.on('send-settings', (event, configSettings) => {
 
 //Handle loading local workstation printers
 ipcRenderer.on('local-printers', (event, localPrinters) => {
+	//document.getElementById("message").value = 'In local-printers';
 	let i = 0;
 	var sel = document.getElementById('localPrinter');
 	console.log ('local-printers selectedLocalPrinter = ' + selectedLocalPrinter);
@@ -117,6 +121,7 @@ ipcRenderer.on('local-printers', (event, localPrinters) => {
 
 //Handle loading Alma printers
 ipcRenderer.on('alma-printers', (event, almaPrinters) => {
+	//document.getElementById("message").value = 'In Renderer load Alma printers ' + JSON.stringify(almaPrinters);
 	if (document.getElementById('apiKey').value.length > 0) {
 		globalAlmaPrinters = almaPrinters;
 		almaPrintersAvailable();
@@ -128,24 +133,21 @@ ipcRenderer.on('alma-printers', (event, almaPrinters) => {
 	}
 	if (document.getElementById('apiKey').value.length == 0 || almaPrinterProfiles.length == 0) {
 		document.getElementById("cancelSettings").disabled = true;
-		me.closable = false;
-	}
-	else {
-		me.closable = true;
 	}
 })
 
 //Function that communicates with Alma to get the Alma printers.
 function getAlmaPrinters() {
     console.log ('in getAlmaPrinters()');
+	//document.getElementById("message").value = 'In getAlmaPrinters';
 	const region = document.querySelector('#region').value;
 	const apiKey = document.querySelector('#apiKey').value;
 	const https = require('https');
 	let data = '';
 
-  	let request = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/printers?apikey=" + apiKey  + '&printout_queue=true&limit=100&format=json';
+	let request = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/printers?apikey=" + apiKey  + '&printout_queue=true&limit=100&format=json';
 	console.log ("request = " + request);
-  
+	//document.getElementById("message").value = request;
 	https.get(
 	  request, (resp) =>{
 		// A chunk of data has been received.
@@ -283,11 +285,18 @@ function savePrinterProfile () {
 	else {
 		colorValue = 'false';
 	}
+	
+	const format = document.querySelector('#letterFormat').value;
+	const units = document.querySelector('#borderUnits').value;
+	const top = document.querySelector('#borderTop').value;
+	const right = document.querySelector('#borderRight').value;
+	const bottom = document.querySelector('#borderBottom').value;
+	const left = document.querySelector('#borderLeft').value;
 
 	var x = document.getElementById("almaPrinter");
 	for (var i = 0; i < x.options.length; i++) {
 		if (x.options[i].selected) {
-			jsonObj = {almaPrinter: x.options[i].value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue};
+			jsonObj = {almaPrinter: x.options[i].value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left};
 			almaPrinterProfiles.splice(almaPrinterProfiles.length, 0, jsonObj);
 		}
 	}
@@ -321,8 +330,12 @@ function removeAvailablePrinters() {
 }
 
 function appendPrinterProfiles(almaPrinters, data) {
+	var myObj = document.getElementById('profiles');
+	if (myObj !== null)
+		myObj.remove();
 	var mainContainer = document.getElementById("printerProfiles");
 	var div = document.createElement('div');
+	var letterFormat, borderUnits, borderTop, borderRight, borderBottom, borderLeft;
 	div.id = 'profiles'
 	mainContainer.appendChild(div);
 	var secondContainer = document.getElementById('profiles');
@@ -335,11 +348,25 @@ function appendPrinterProfiles(almaPrinters, data) {
 			else {
 				div.innerHTML = '<hr>';			
 			}
+			if (data[i].letterFormat == undefined)
+			  letterFormat = 'Letter'
+			else 
+			  letterFormat = data[i].letterFormat;
+			if (data[i].borderUnits == undefined) 
+			  borderUnits = "in";
+			else 
+			  borderUnits = data[i].borderUnits;
+			borderTop = setBorderValue(data[i].borderTop);
+			borderRight = setBorderValue(data[i].borderRight)
+			borderBottom = setBorderValue(data[i].borderBottom);
+			borderLeft = setBorderValue(data[i].borderLeft);
 			div.innerHTML = div.innerHTML + '<input type="checkbox" id="printerProfile" onclick="javascript:setRemovePrinterProfileButtonState();" value="' + i + '">';
 			div.innerHTML = div.innerHTML + 'Alma Printer:  ' + displayName + '<br>';
 			div.innerHTML = div.innerHTML + '&emsp; Local Printer:  ' + decodeURIComponent(data[i].localPrinter ) + '<br>';
 			div.innerHTML = div.innerHTML + '&emsp; Orientation:  ' + data[i].orientation + '<br>';
 			div.innerHTML = div.innerHTML + '&emsp; Color:  ' + data[i].color + '<br>';
+			div.innerHTML = div.innerHTML + '&emsp; Format:  ' + letterFormat + '<br>';
+			div.innerHTML = div.innerHTML + '&emsp; Border (' + borderUnits + '): top ' + borderTop + ', right ' + borderRight + ', bottom ' + borderBottom + ', left ' + borderLeft + '<br>';
 			secondContainer.appendChild(div);
 		}	
 	}
@@ -376,7 +403,8 @@ function setAddOKButtonState () {
 }
 
 function buildAlmaPrinterDisplayName(almaPrinters, id) {
-	let printerCount = almaPrinters.total_record_count;
+	//let printerCount = almaPrinters.total_record_count;
+	let printerCount = almaPrinters.printer.length;
 	for (let i = 0; i < printerCount; i++) {
 		if (almaPrinters.printer[i].id == id) {
 			displayName = almaPrinters.printer[i].name
@@ -390,7 +418,8 @@ function buildAlmaPrinterDisplayName(almaPrinters, id) {
 }
 
 function almaPrintersAvailable() {
-	let printerCount = globalAlmaPrinters.total_record_count;
+	//let printerCount = globalAlmaPrinters.total_record_count;
+	let printerCount = globalAlmaPrinters.printer.length;
 	let inUse;
 	let iCount = 0;
 	let i;
@@ -414,7 +443,8 @@ function almaPrintersAvailable() {
 function updatePrinterSettings () {
 	//Remove the current printer profiles....
 	var myObj = document.getElementById('profiles');
-	myObj.remove();
+	if (myObj !== null)
+	  myObj.remove();
 	//Rebuild available Alma printers and reload them
 	almaPrintersAvailable();
 	loadAvailableAlmaPrinters();
@@ -426,6 +456,7 @@ function updatePrinterSettings () {
 }
 
 function testAPIKey () {
+	//document.getElementById("message").value = 'In testAPIKey';
 	getAlmaPrinters();
 }
 
@@ -440,4 +471,20 @@ function enableDisableSettings (divId, value) {
 function disableAutomaticOptions(value) {
 	document.getElementById("interval").disabled = value;
 	document.getElementById("autostart").disabled = value;
+}
+
+function resumePrinting(){
+	//document.getElementById("message").value = 'in resumePrinting';	
+	ipcRenderer.send('print-continue');
+}
+
+function setBorderValue (value) {
+	if (value == undefined)
+	  return defaultBorder;
+	else if (value == "")
+	  return "0";
+	else if (isNaN(value))
+	  return "0";
+	else
+	  return value;
 }
