@@ -10,7 +10,7 @@
     "electron-log": "^4.3.5",
     "electron-notarize": "^0.2.1",
     "electron-updater": "^4.3.4",
-    "html-pdf": "^2.2.0",
+    "html-pdf": "^3.0.1",
     "node-native-printer": "^1.0.0-beta.5",
     "temp": "^0.9.4"
   },
