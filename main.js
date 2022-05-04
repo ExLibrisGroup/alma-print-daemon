@@ -184,7 +184,7 @@ function createWindow () {
       width: 600,
       height: 595,
       show: true,
-      title: "Alma Print Daemon 2.0.0-beta-03",
+      title: "Alma Print Daemon 2.0.0",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
