@@ -184,7 +184,7 @@ function createWindow () {
       width: 600,
       height: 595,
       show: true,
-      title: "Alma Print Daemon 2.0.0",
+      title: "Alma Print Daemon 2.1.0-beta1",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -413,7 +413,8 @@ autoUpdater.on('update-downloaded', () => {
 });
 
 function getLocalPrinter(almaPrinter) {
-  let i;
+  let i, pageOptions;
+
   console.log ("in getLocalPrinter");
   //Save last Alma printer so we don't come here to get local printer settings for each document if not necessary
   lastAlmaPrinter = almaPrinter;
@@ -430,7 +431,7 @@ function getLocalPrinter(almaPrinter) {
       break;
     }
   }
-  let letterFormat, borderUnits, borderTop, borderRight, borderBottom, borderLeft;
+  let letterFormat, borderUnits, borderTop, borderRight, borderBottom, borderLeft, customHeight, customWidth;
   if (configSettings.almaPrinterProfiles[i].letterFormat == undefined) 
     letterFormat = 'Letter';
   else
@@ -438,26 +439,43 @@ function getLocalPrinter(almaPrinter) {
 
   if (configSettings.almaPrinterProfiles[i].borderUnits == undefined) 
     borderUnits = "in";
-  else 
+  else
     borderUnits = configSettings.almaPrinterProfiles[i].borderUnits;
 
   borderTop = setBorderValue(configSettings.almaPrinterProfiles[i].borderTop) + borderUnits;
   borderRight = setBorderValue(configSettings.almaPrinterProfiles[i].borderRight) + borderUnits;
   borderBottom = setBorderValue(configSettings.almaPrinterProfiles[i].borderBottom) + borderUnits;
   borderLeft = setBorderValue(configSettings.almaPrinterProfiles[i].borderLeft) + borderUnits;
-
-  pdfOptions = {
-    format: letterFormat,
-    orientation: configSettings.almaPrinterProfiles[i].orientation,
-    border: {
-      top: borderTop,            
-      right: borderRight,
-      bottom: borderBottom,
-      left: borderLeft
-    },
-    script: 'lib\\pdf_a4_portrait.js',
-    phantomPath: 'lib\\phantomjs.exe'
+  customHeight = configSettings.almaPrinterProfiles[i].pageHeight + borderUnits;
+  customWidth = configSettings.almaPrinterProfiles[i].pageWidth + borderUnits;
+  
+  if (letterFormat == 'Custom') 
+    pdfOptions = {
+      height: customHeight,
+      width: customWidth,
+      border: {
+        top: borderTop,            
+        right: borderRight,
+        bottom: borderBottom,
+        left: borderLeft
+      },
+      script: 'lib\\pdf_a4_portrait.js',
+      phantomPath: 'lib\\phantomjs.exe'
     };
+  else
+    pdfOptions = {
+      format: letterFormat,
+      orientation: configSettings.almaPrinterProfiles[i].orientations,
+      border: {
+        top: borderTop,            
+        right: borderRight,
+        bottom: borderBottom,
+        left: borderLeft
+      },
+      script: 'lib\\pdf_a4_portrait.js',
+      phantomPath: 'lib\\phantomjs.exe'
+    };
+    console.log ('pdfOptions = ' + JSON.stringify(pdfOptions));
   
   printOptions = {
         "landscape": useLandscape,

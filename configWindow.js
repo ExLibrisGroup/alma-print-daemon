@@ -7,6 +7,7 @@ let displayName;
 let globalAlmaPrinters;
 let availableAlmaPrinters = [];
 let cancelAvailable = false;
+let editMode = false;
 
 const form = document.querySelector('form');
 form.addEventListener('submit', submitForm);
@@ -94,9 +95,14 @@ ipcRenderer.on('send-settings', (event, configSettings) => {
 
 //Handle loading local workstation printers
 ipcRenderer.on('local-printers', (event, localPrinters) => {
-	//document.getElementById("message").value = 'In local-printers';
-	let i = 0;
 	var sel = document.getElementById('localPrinter');
+	//Clear out the local printer dropdown before adding them
+	let i, L = sel.options.length - 1;
+	for(i = L; i >= 0; i--) {
+	   sel.remove(i);
+	}
+ 	//document.getElementById("message").value = 'In local-printers';
+	i = 0;
 	console.log ('local-printers selectedLocalPrinter = ' + selectedLocalPrinter);
 	while (i < localPrinters.length) {
 		var opt = document.createElement('option');
@@ -129,6 +135,7 @@ ipcRenderer.on('alma-printers', (event, almaPrinters) => {
 		appendPrinterProfiles(almaPrinters, almaPrinterProfiles);
 		//Set add/remove printer profile button state
 		setRemovePrinterProfileButtonState();
+		setEditPrinterProfileButtonState();
 		setAddPrinterProfileButtonState();
 	}
 	if (document.getElementById('apiKey').value.length == 0 || almaPrinterProfiles.length == 0) {
@@ -188,6 +195,7 @@ function getAlmaPrinters() {
 		  appendPrinterProfiles(almaPrinters, almaPrinterProfiles);
 		  //Set add/remove printer profile button state
 		  setRemovePrinterProfileButtonState();
+		  setEditPrinterProfileButtonState();
 		  setAddPrinterProfileButtonState();
 		})
 	  }).on('error', (e) => {
@@ -268,38 +276,38 @@ function showPrinterProfiles () {
 function savePrinterProfile () {
 	//Build JSON element
 	var jsonObj;
-	var orientationValue;
-	var colorValue;
 
 	const localPrinterSelected = encodeURIComponent(document.querySelector('#localPrinter').value);
-
-	if (document.querySelector('input[name="orientation"]:checked').value == "portrait") {
-		orientationValue = 'portrait';
-	}
-	else {
-		orientationValue = 'landscape';
-	}
-	if (document.querySelector('input[name="color"]:checked').value == "true") {
-		colorValue = 'true';
-	}
-	else {
-		colorValue = 'false';
-	}
-	
+	const orientationValue = document.querySelector('#orientationOption').value;
+	const colorValue = document.querySelector('#colorOption').value;
 	const format = document.querySelector('#letterFormat').value;
 	const units = document.querySelector('#borderUnits').value;
 	const top = document.querySelector('#borderTop').value;
 	const right = document.querySelector('#borderRight').value;
 	const bottom = document.querySelector('#borderBottom').value;
 	const left = document.querySelector('#borderLeft').value;
+	const customHeight = document.querySelector('#pageHeight').value;
+	const customWidth = document.querySelector('#pageWidth').value;
 
-	var x = document.getElementById("almaPrinter");
-	for (var i = 0; i < x.options.length; i++) {
-		if (x.options[i].selected) {
-			jsonObj = {almaPrinter: x.options[i].value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left};
-			almaPrinterProfiles.splice(almaPrinterProfiles.length, 0, jsonObj);
+	//if in edit mode, remove the existing entry and build new one
+	if (editMode) {
+		var checkedBoxes = document.querySelectorAll('input[id=printerProfile]:checked');
+		for (var i = checkedBoxes.length - 1; i >= 0; i--) {
+			almaPrinterProfiles.splice(checkedBoxes[i].value, 1);
 		}
-	}
+		jsonObj = {almaPrinter: document.querySelector('#almaPrinterId').value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left, pageHeight: customHeight, pageWidth: customWidth};
+	} else {
+		//we are adding; build new entries
+		var x = document.getElementById("almaPrinter");
+		for (var i = 0; i < x.options.length; i++) {
+			console.log ("in the addloop");
+			if (x.options[i].selected) {
+				jsonObj = {almaPrinter: x.options[i].value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left, pageHeight: customHeight, pageWidth: customWidth};
+			}
+		}
+	}	
+	//insert new or edited entry
+	almaPrinterProfiles.splice(almaPrinterProfiles.length, 0, jsonObj);
 	updatePrinterSettings();
 	//Swap UI elements
 	showPrinterProfiles();
@@ -308,12 +316,84 @@ function savePrinterProfile () {
 function addPrinterProfile () {
 	document.getElementById('newPrinterProfile').style.display = 'block';
 	document.getElementById('profilelist').style.display = 'none';
+	document.getElementById('addPrinter').style.display = 'block';
+	document.getElementById('editPrinter').style.display = 'none';
 	enableDisableSettings("settings", true);
 	// clear Alma printer selection
 	var sel = document.getElementById('almaPrinter');
 	sel.selectedIndex = -1;
 	// make ok button disabled
 	document.getElementById("addOK").disabled = true;
+	editMode = false;
+}
+
+function editPrinterProfile () {
+	console.log ("In editPrinterProfile");
+	document.getElementById('newPrinterProfile').style.display = 'block';
+	document.getElementById('profilelist').style.display = 'none';
+	document.getElementById('addPrinter').style.display = 'none';
+	document.getElementById('editPrinter').style.display = 'block';
+	enableDisableSettings("settings", true);
+	// clear Alma printer selection
+	var checkedBox = document.querySelectorAll('input[id=printerProfile]:checked')
+	console.log ('checkedBox = ' + checkedBox[0].value);
+	var editProfile = almaPrinterProfiles[checkedBox[0].value];
+	console.log ('edit profile = ' + JSON.stringify(editProfile));
+	buildAlmaPrinterDisplayName(globalAlmaPrinters, editProfile.almaPrinter);
+	document.getElementById('editAlmaPrinterQueue').textContent = 'Editing Alma Printer Queue ' + displayName;
+	document.getElementById('almaPrinterId').value = editProfile.almaPrinter;
+	document.getElementById('borderTop').value = setBorderValue(editProfile.borderTop);
+	document.getElementById('borderBottom').value = setBorderValue(editProfile.borderBottom);
+	document.getElementById('borderLeft').value = setBorderValue(editProfile.borderLeft);
+	document.getElementById('borderRight').value = setBorderValue(editProfile.borderRight);
+	document.getElementById('pageHeight').value = editProfile.pageHeight;
+	document.getElementById('pageWidth').value = editProfile.pageWidth;
+	console.log ('local printer looking for ' + decodeURIComponent(editProfile.localPrinter));
+	for (var i = 0; i < document.getElementById('localPrinter').length; i++) {
+		console.log ('local printer match? ' + document.getElementById('localPrinter').options[i].value);
+		if (document.getElementById('localPrinter').options[i].value == decodeURIComponent(editProfile.localPrinter)) {
+			document.getElementById('localPrinter').selectedIndex = i;
+			break;
+		}
+	}
+	if (editProfile.letterFormat == undefined)
+		editProfile.letterFormat = 'Letter';
+	console.log ('letter format looking for ' + editProfile.letterFormat);
+	for (var i = 0; i < document.getElementById('letterFormat').length; i++) {
+		console.log ('letter format match? ' + document.getElementById('letterFormat').options[i].value);
+		if (document.getElementById('letterFormat').options[i].value == editProfile.letterFormat) {
+			document.getElementById('letterFormat').selectedIndex = i;
+			break;
+		}
+	}
+	if (editProfile.borderUnits == undefined)
+		editProfile.borderUnits = 'in';
+	console.log ('border units looking for ' + editProfile.borderUnits);
+	for (var i = 0; i < document.getElementById('borderUnits').length; i++) {
+		console.log ('border units match? ' + document.getElementById('borderUnits').options[i].value);
+		if (document.getElementById('borderUnits').options[i].value == editProfile.borderUnits) {
+			document.getElementById('borderUnits').selectedIndex = i;
+			break;
+		}
+	}
+	if (editProfile.color == undefined)
+		editProfile.color = false;
+	for (var i = 0; i < document.getElementById('colorOption').length; i++) {
+		if (document.getElementById('colorOption').options[i].value == editProfile.color) {
+			document.getElementById('colorOption').selectedIndex = i;
+			break;
+		}	
+	}
+	if (editProfile.orientation == undefined)
+		editProfile.orientation = 'portrait';
+	for (var i = 0; i < document.getElementById('orientationOption').length; i++) {
+		if (document.getElementById('orientationOption').options[i].value == editProfile.orientation) {
+			document.getElementById('orientationOption').selectedIndex = i;
+			break;
+		}	
+	}
+	formatChange();
+	editMode = true;
 }
 
 function removePrinterProfile() {
@@ -360,17 +440,24 @@ function appendPrinterProfiles(almaPrinters, data) {
 			borderRight = setBorderValue(data[i].borderRight)
 			borderBottom = setBorderValue(data[i].borderBottom);
 			borderLeft = setBorderValue(data[i].borderLeft);
-			div.innerHTML = div.innerHTML + '<input type="checkbox" id="printerProfile" onclick="javascript:setRemovePrinterProfileButtonState();" value="' + i + '">';
+			div.innerHTML = div.innerHTML + '<input type="checkbox" id="printerProfile" onclick="javascript:setPrinterProfileButtonState();" value="' + i + '">';
 			div.innerHTML = div.innerHTML + 'Alma Printer:  ' + displayName + '<br>';
 			div.innerHTML = div.innerHTML + '&emsp; Local Printer:  ' + decodeURIComponent(data[i].localPrinter ) + '<br>';
-			div.innerHTML = div.innerHTML + '&emsp; Orientation:  ' + data[i].orientation + '<br>';
 			div.innerHTML = div.innerHTML + '&emsp; Color:  ' + data[i].color + '<br>';
-			div.innerHTML = div.innerHTML + '&emsp; Format:  ' + letterFormat + '<br>';
+			div.innerHTML = div.innerHTML + '&emsp; Format:  ' + letterFormat
+			if (letterFormat == "Custom")
+				div.innerHTML = div.innerHTML + ' Page Width/Height ' + data[i].pageWidth + '/' + data[i].pageHeight + borderUnits;
+			div.innerHTML = div.innerHTML + ', ' + data[i].orientation + '<br>';
 			div.innerHTML = div.innerHTML + '&emsp; Border (' + borderUnits + '): top ' + borderTop + ', right ' + borderRight + ', bottom ' + borderBottom + ', left ' + borderLeft + '<br>';
 			secondContainer.appendChild(div);
 		}	
 	}
 
+}
+
+function setPrinterProfileButtonState() {
+	setRemovePrinterProfileButtonState();
+	setEditPrinterProfileButtonState();
 }
 
 function setAddPrinterProfileButtonState () {
@@ -390,6 +477,16 @@ function setRemovePrinterProfileButtonState () {
 	}
 	else {
 		document.getElementById("removePrinterProfileButton").disabled = false;		
+	}
+}
+
+function setEditPrinterProfileButtonState () {
+	var checkedBoxes = document.querySelectorAll('input[id=printerProfile]:checked');
+	if (checkedBoxes.length != 1) {
+		document.getElementById("editPrinterProfileButton").disabled = true;
+	}
+	else {
+		document.getElementById("editPrinterProfileButton").disabled = false;		
 	}
 }
 
@@ -452,6 +549,7 @@ function updatePrinterSettings () {
 	appendPrinterProfiles (globalAlmaPrinters, almaPrinterProfiles);
 	//Set add/remove printer profile button state
 	setRemovePrinterProfileButtonState();
+	setEditPrinterProfileButtonState();
 	setAddPrinterProfileButtonState();
 }
 
@@ -487,4 +585,14 @@ function setBorderValue (value) {
 	  return "0";
 	else
 	  return value;
+}
+
+function formatChange() {
+	console.log ('change format = ' + document.getElementById('letterFormat').value);
+	if (document.getElementById('letterFormat').value == "Custom") {
+		document.getElementById('customFormat').style.display = 'block';
+	}
+	else {
+		document.getElementById('customFormat').style.display = 'none';
+	}
 }
