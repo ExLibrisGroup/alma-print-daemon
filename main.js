@@ -33,9 +33,15 @@ let useLandscape = false;
 let useColor = false;
 let useLocalPrinter;
 let menuOffset = 0;
+//For classic printing using the browser window
+let printDocs;
+let docIndex = 0;
+let total_document_count = 0;
+let notPrinting = true;
+let paused = true;
 
-const getPrinterQueues = async type => 
-  await alma.getp(`/conf/printers?printout_queue=${type}&limit=100`);
+const getPrinterQueues = async (type, offset) => 
+  await alma.getp(`/conf/printers?printout_queue=${type}&limit=100&offset=${offset}`);
 
 const getPrintouts = async (printer_id = useAlmaPrinters, limit = 100) => 
   await alma.getp(`/task-lists/printouts?status=Pending${printer_id}&limit=${limit}`);
@@ -53,10 +59,36 @@ const htmlToPdf = html => {
   })
 }
 
-const printDocuments = async () => {
-  console.log ('Entered printDocuments');
-  //WriteLog ("from printDocuments ALMA_APIKEY = " + process.env.ALMA_APIKEY);
-  //WriteLog ("from printDocuments ALMA_APIPATH = " + process.env.ALMA_APIPATH);
+const printDocumentsViaBrowser = async () => {
+  console.log ('Entered printDocumentsViaBrowser');
+  clearTimeout(timer);
+  mainWindow.loadURL('File://' + __dirname + '\\docsRetrieving.html');
+  printDocs = await getPrintouts();
+  total_record_count  = printDocs.total_record_count;
+  docIndex = 0;
+  console.log ('Back from getDocuments; total_record_count = ' + total_record_count);
+  if (total_record_count > 0) {
+    notPrinting = false;
+    console.log ('Load first document');
+    mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDocs.printout[docIndex].letter));
+  }
+  else {
+    notPrinting = true;
+    if (configSettings.interval == 0) {
+      mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
+      //Don't set a timer....requests are done manually
+      return;
+    }
+    else {
+      mainWindow.loadURL('File://' + __dirname + '\\docsPrintedInterval.html');
+      console.log ('No docs at all..set the timer');
+      timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
+    }
+  }
+}
+
+const printDocumentsViaPDF = async () => {
+  console.log ('Entered printDocumentsViaPDF');
   clearTimeout(timer);
   console.log ('Timer cleared...ready to getPrintouts');
   console.log ('almaPrinters = ' + useAlmaPrinters);
@@ -109,10 +141,21 @@ const printDocuments = async () => {
 }
 
 const getAlmaPrinters = async () => {
-  almaPrinterQueues = await getPrinterQueues('true');
-  //WriteLog ("from getAlmaPrinters APIKEY = " + process.env.ALMA_APIKEY);
-  //WriteLog ("from getAlmaPrinters APIPATH  = " + process.env.ALMA_APIPATH);
-  //console.log ("In getAlmaPrinters async:  " + JSON.stringify(almaPrinterQueues));
+  //Get Alma printers in groups to fix GitHub issue #35.
+  let nextBatch;
+  almaPrinterQueues = await getPrinterQueues('true', 0);
+  let total_alma_printers = almaPrinterQueues.total_record_count;
+  //console.log ('total alma printers = ' + total_alma_printers);
+  let current_printer_count = almaPrinterQueues.printer.length;
+  //console.log ('current printer count = ' + current_printer_count);
+  while (total_alma_printers > current_printer_count) {
+    nextBatch = await getPrinterQueues('true', current_printer_count);
+    for (const printer of nextBatch.printer) {
+      almaPrinterQueues.printer.splice(almaPrinterQueues.printer.length, 0, printer);
+    }
+    current_printer_count = current_printer_count + nextBatch.printer.length;
+    //console.log ('current printer count = ' + current_printer_count);
+  }
 }
 
 // This method will be called when Electron has finished
@@ -184,11 +227,41 @@ function createWindow () {
       width: 600,
       height: 595,
       show: true,
-      title: "Alma Print Daemon 2.1.0-beta1",
+      title: "Alma Print Daemon 2.1.0-beta2",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
       }
+    })
+
+    mainWindow.webContents.on('did-finish-load', () => {
+      if (paused || notPrinting) return;
+      console.log ('Document loaded...print it');
+      if (lastAlmaPrinter != printDocs.printout[docIndex].printer.value) {
+        getLocalPrinter(printDocs.printout[docIndex].printer.value);
+      }
+      mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, function(success){
+        //await markAsPrinted(printDocs.printout[docIndex].id);
+        markAsPrinted(printDocs.printout[docIndex].id);
+        docIndex++;
+        if (docIndex < total_record_count) {
+          console.log ('More docs....load next one:  ' + docIndex);
+          mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDocs.printout[docIndex].letter));
+        }
+        else {
+          notPrinting = true;
+          if (configSettings.interval == 0) {
+            mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
+            //Don't set a timer....requests are done manually
+            return;
+          }
+          else {
+            mainWindow.loadURL('File://' + __dirname + '\\docsPrintedInterval.html');
+            console.log ('No more docs...set the timer');
+            timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
+          }
+        }
+      })
     })
     
     //mainWindow.webContents.openDevTools();
@@ -222,11 +295,13 @@ function createWindow () {
       //If autoStart enabled, start printing
         if (configSettings.autoStart == 'true') {
           console.log ("Start printing since autoStart = true");
-          printDocuments();
+          paused = false;
+          printDocumentsViaBrowser();
         }
         else {
           //Wait for user to start printing
           console.log ("Start in paused mode since autoStart = false");
+          paused = true;
           mainWindow.loadURL('File://' + __dirname + '\\docsPrintIntervalPaused.html');
         }
       }
@@ -244,20 +319,17 @@ function createWindow () {
     if (configSettings.interval == 0) {
       configSettings.interval = 2;
     }
-    printDocuments();
+    printDocumentsViaPDF();
   }
 }
-
-//if (!setup) {
-//  console.log ("Not in setup mode -> start printing!");
-//  printDocuments();
-//}
-// End Main line ***************
 
 //Function to control getting documents when the timer hits
 function getDocumentsTimerController() {
   console.log ('Timer triggered');
-  printDocuments();
+  if (service)
+    printDocumentsViaPDF();
+  else
+    printDocumentsViaBrowser();
 }
 
 //Function to read config file and set options accordingly
@@ -371,21 +443,28 @@ ipcMain.on('save-settings', function(e, configString){
     mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
   }
   else {
-    printDocuments();
+    if (service)
+      printDocumentsViaPDF();
+    else
+      printDocumentsViaBrowser();
   }
 })
 
 //Catch "Print now" from renderer
 ipcMain.on('print-now', function (e){
   console.log('from renderer:  user clicked print now');
-  printDocuments(0);
+  paused = false;
+  //Has a UI, so print via browser
+  printDocumentsViaBrowser(0);
 })
 
 //Catch "Continue printing" from renderer
 ipcMain.on('print-continue', function(e) {
   console.log('from renderer:  user clicked continue printing');
   setup = false;
-  printDocuments();
+  paused = false;
+  //Has a UI, so print via browser
+  printDocumentsViaBrowser();
 })
 
 //Catch "Pause printing" from renderer
@@ -393,6 +472,7 @@ ipcMain.on('print-pause', function (e){
   console.log('from renderer:  user clicked pause printing');
   //clear the timer since user has paused printing
   clearTimeout (timer);
+  paused = true;
   mainWindow.loadURL('File://' + __dirname + '\\docsPrintIntervalPaused.html');
 })
 
