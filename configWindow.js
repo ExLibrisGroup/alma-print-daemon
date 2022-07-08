@@ -1,3 +1,4 @@
+var alma = require ('almarestapi-lib');
 const ipcRenderer = require('electron').ipcRenderer;
 const {dialog} = require('electron').remote;
 const defaultBorder = ".4"  //This was the hardcoded default pre-2.0.0-beta-03
@@ -6,6 +7,7 @@ let almaPrinterProfiles;
 let displayName;
 let globalAlmaPrinters;
 let availableAlmaPrinters = [];
+let almaPrinters;
 let cancelAvailable = false;
 let editMode = false;
 
@@ -143,8 +145,35 @@ ipcRenderer.on('alma-printers', (event, almaPrinters) => {
 	}
 })
 
-//Function that communicates with Alma to get the Alma printers.
-function getAlmaPrinters() {
+
+const getPrinterQueues = async (type, offset) => 
+	await alma.getp(`/conf/printers?printout_queue=${type}&limit=100&offset=${offset}`);
+
+const getAlmaPrinters = async () => {
+	//Get Alma printers in groups to fix GitHub issue #35.
+	let nextBatch;
+	almaPrinters = await getPrinterQueues('true', 0);
+	let total_alma_printers = almaPrinters.total_record_count;
+	let current_printer_count = almaPrinters.printer.length;
+	while (total_alma_printers > current_printer_count) {
+	  nextBatch = await getPrinterQueues('true', current_printer_count);
+	  for (const printer of nextBatch.printer) {
+		almaPrinters.printer.splice(almaPrinters.printer.length, 0, printer);
+	  }
+	  current_printer_count = current_printer_count + nextBatch.printer.length;
+	}
+	globalAlmaPrinters = almaPrinters;
+	almaPrintersAvailable();
+	loadAvailableAlmaPrinters();
+	appendPrinterProfiles(almaPrinters, almaPrinterProfiles);
+	//Set add/remove printer profile button state
+	setRemovePrinterProfileButtonState();
+	setEditPrinterProfileButtonState();
+	setAddPrinterProfileButtonState();
+  }
+
+//Function that communicates with Alma to test the API key, then get the Alma printers.
+function testAPIKey() {
     console.log ('in getAlmaPrinters()');
 	//document.getElementById("message").value = 'In getAlmaPrinters';
 	const region = document.querySelector('#region').value;
@@ -152,8 +181,7 @@ function getAlmaPrinters() {
 	const https = require('https');
 	let data = '';
 
-	let request = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/printers?apikey=" + apiKey  + '&printout_queue=true&limit=100&format=json';
-	console.log ("request = " + request);
+	let request = "https://api-" + region + ".hosted.exlibrisgroup.com/almaws/v1/conf/printers?apikey=" + apiKey  + '&printout_queue=true&limit=1&format=json';
 	//document.getElementById("message").value = request;
 	https.get(
 	  request, (resp) =>{
@@ -182,21 +210,18 @@ function getAlmaPrinters() {
 			console.log ("No alma printers data received...");
 			return;
           }
-		  almaPrinters = JSON.parse(data);
-		  globalAlmaPrinters = almaPrinters;
-          const options = {
+		  //almaPrinters = JSON.parse(data);
+		  //console.log ('data = ' + JSON.stringify(data));
+		  const options = {
             buttons: ['Close'],
             title: 'Success!',
             message: 'Your API key is valid.',
           }
 		  let response = dialog.showMessageBox(options);
-		  almaPrintersAvailable();
-		  loadAvailableAlmaPrinters();
-		  appendPrinterProfiles(almaPrinters, almaPrinterProfiles);
-		  //Set add/remove printer profile button state
-		  setRemovePrinterProfileButtonState();
-		  setEditPrinterProfileButtonState();
-		  setAddPrinterProfileButtonState();
+		  process.env.ALMA_APIKEY = apiKey;
+		  process.env.ALMA_APIPATH = 'https://api-' + region + '.hosted.exlibrisgroup.com/almaws/v1';
+		  alma.setOptions (process.env.ALMA_APIKEY, process.env.ALMA_APIPATH);
+		  getAlmaPrinters();
 		})
 	  }).on('error', (e) => {
 		const options = {
@@ -551,11 +576,6 @@ function updatePrinterSettings () {
 	setRemovePrinterProfileButtonState();
 	setEditPrinterProfileButtonState();
 	setAddPrinterProfileButtonState();
-}
-
-function testAPIKey () {
-	//document.getElementById("message").value = 'In testAPIKey';
-	getAlmaPrinters();
 }
 
 function enableDisableSettings (divId, value) {

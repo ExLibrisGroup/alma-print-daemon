@@ -145,16 +145,13 @@ const getAlmaPrinters = async () => {
   let nextBatch;
   almaPrinterQueues = await getPrinterQueues('true', 0);
   let total_alma_printers = almaPrinterQueues.total_record_count;
-  //console.log ('total alma printers = ' + total_alma_printers);
   let current_printer_count = almaPrinterQueues.printer.length;
-  //console.log ('current printer count = ' + current_printer_count);
   while (total_alma_printers > current_printer_count) {
     nextBatch = await getPrinterQueues('true', current_printer_count);
     for (const printer of nextBatch.printer) {
       almaPrinterQueues.printer.splice(almaPrinterQueues.printer.length, 0, printer);
     }
     current_printer_count = current_printer_count + nextBatch.printer.length;
-    //console.log ('current printer count = ' + current_printer_count);
   }
 }
 
@@ -227,7 +224,7 @@ function createWindow () {
       width: 600,
       height: 595,
       show: true,
-      title: "Alma Print Daemon 2.1.0-beta2",
+      title: "Alma Print Daemon 2.1.0-beta3",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -284,9 +281,6 @@ function createWindow () {
       })
     }
     else if (!service) {
-      //If not running as a service, we can check for updates.
-      autoUpdater.allowPrerelease = false;
-      autoUpdater.checkForUpdatesAndNotify();
       //If manual requesting...
       if (configSettings.interval == 0) {
         mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
@@ -480,6 +474,10 @@ ipcMain.on('display-config', function (e){
   displayConfigPage();
 }) 
 
+ipcMain.on('check-for-update', function (e){
+  checkForSoftwareUpdate();
+})
+
 ipcMain.on('restart_app', () => {
   autoUpdater.quitAndInstall();
 });
@@ -490,6 +488,10 @@ autoUpdater.on('update-available', () => {
 
 autoUpdater.on('update-downloaded', () => {
   mainWindow.webContents.send('update_downloaded');
+});
+
+autoUpdater.on('update-not-available', () => {
+  mainWindow.webContents.send('update_not_available');
 });
 
 function getLocalPrinter(almaPrinter) {
@@ -597,6 +599,11 @@ function displayConfigPage() {
         mainWindow.webContents.send('alma-printers', almaPrinterQueues);
       }
     })
+}
+
+function checkForSoftwareUpdate() {
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.checkForUpdatesAndNotify();
 }
 
 function convertConfigFile() {
