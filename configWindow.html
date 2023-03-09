@@ -58,14 +58,21 @@
 				<div id="addprofile" >
 						<div id ="newPrinterProfile" style="display:none; overflow:auto; height:350px; border:1px solid black; padding-left:15px">
 							<br>
-							<label>Select Alma Printer Queue(s):</label>
-							<select id = "almaPrinter"
-								multiple = "multiple"
-								size = "3"
-								style="width: 545px"
-								onclick="javascript:setAddOKButtonState()">
-							</select>
-							<br>
+							<div id="addPrinter" style="display:none"> 
+								<label>Select Alma Printer Queue(s):</label>
+								<select id = "almaPrinter"
+									multiple = "multiple"
+									size = "3"
+									style="width: 545px"
+									onclick="javascript:setAddOKButtonState()">
+								</select>
+								<br>
+							</div>
+							<div id="editPrinter" style="display:none">
+								<label id="editAlmaPrinterQueue"></label>
+								<input type="hidden" id="almaPrinterId" name="almaPrinterId" size="50">
+								<br>
+							</div>
 							<br>
 							<label>Select Local/Network Printer:</label>
 							<select id = "localPrinter"
@@ -75,20 +82,7 @@
 							<br><br>
 							<div class="row">
 								<div class="column">
-									<label for="letterFormat">Format:</label>
-									<select id = "letterFormat" name="letterFormat"
-										size = "1"
-										style="width: 75px;">
-										<option value="A3">A3</option>
-										<option value="A4">A4</option>
-										<option value="A5">A5</option>
-										<option value="Legal">Legal</option>								
-										<option value="Letter">Letter</option>
-										<option value="Tabloid">Tabloid</option>
-									</select>
-								</div>
-								<div class="column">
-									<label for="borderUnits">Border unit of measure:</label>
+									<label for="borderUnits">Unit of measure:</label>
 									<select id = "borderUnits" name="borderUnits"
 										size = "1"
 										style="width: 100px;">
@@ -98,6 +92,15 @@
 										<option value="px">pixels</option>								
 									</select>
 								</div>
+								<div class="column">	
+									<label for="colorOption">Color:</label>
+									<select id = "colorOption" name="colorOption"
+										size = "1"
+										style="width: 100px;">
+										<option value="true">Color</option>
+										<option value="false">Grayscale</option>
+									</select>
+								</div>	
 							</div>
 							<div class="row"><br><br></div>
 							<div class="row">
@@ -123,15 +126,41 @@
 							<div class="row"><br><br><br></div>
 							<div class="row">
 								<div class="column">
-									<input type="radio" id="portrait" name="orientation" value="portrait" checked="checked">Portrait<br>
-									<input type="radio" id="landscape" name="orientation" value="landscape">Landscape
+									<label for="letterFormat">Format:</label>
+									<select id = "letterFormat" name="letterFormat" onchange="formatChange()"
+										size = "1"
+										style="width: 75px;">
+										<option value="A3">A3</option>
+										<option value="A4">A4</option>
+										<option value="A5">A5</option>
+										<option value="Legal">Legal</option>								
+										<option value="Letter">Letter</option>
+										<option value="Tabloid">Tabloid</option>
+										<option value="Custom">Custom...</option>	
+									</select>
 								</div>
-								<div class="column">	
-									<input type="radio" id="color" name="color" value="true" checked="checked">Color<br>
-									<input type="radio" id="grayscale" name="color" value="false" >Grayscale
+								<div class="column" id="orientation" style="display:block">	
+									<label for="orientationOption">Orientation:</label>
+									<select id = "orientationOption" name="orientationOption"
+										size = "1"
+										style="width: 100px;">
+										<option value="portrait">Portrait</option>
+										<option value="landscape">Landscape</option>
+									</select>
 								</div>
 							</div>
-							<br><br><br>
+							<div class="row"><br><br></div>
+							<div class="row" id="customFormat" style="display:none">
+								<div class="column">
+									<label for="pageWidth">Page Width:</label>
+									<input type="text" id="pageWidth" name="pageWidth" size="5"><br>
+								</div>
+								<div class="column">
+									<label for="pageHeight">Page Height:</label>
+									<input type="text" id="pageHeight" name="pageHeight" size="5">
+								</div>
+							</div>
+							<br><br>
 							<button type="button" id="addOK" onclick="javascript:savePrinterProfile()">OK</button>
 							<button type="button" id="addCancel" onclick="javascript:showPrinterProfiles()">Cancel</button>
 						</div>
@@ -142,6 +171,7 @@
 					</div>
 					<br>
 					<button type="button" id="addPrinterProfileButton" disabled="true" onclick="javascript:addPrinterProfile()">Add Printer Profile</button>
+					<button type="button" id="editPrinterProfileButton" disabled="true" onclick="javascript:editPrinterProfile()">Edit Printer Profile</button>
 					<button type="button" id="removePrinterProfileButton" disabled="true" onclick="javascript:removePrinterProfile()">Remove Printer Profile</button>
 					<br><br>
 					<button type="submit">Save and Continue Printing</button>

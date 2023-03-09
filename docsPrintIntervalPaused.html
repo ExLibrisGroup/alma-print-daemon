@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="UTF-8">
-		<title>Alma Print Daemon 2.0.0</title>
+		<title>Alma Print Daemon 2.1.0</title>
 	</head>
 <style>
 #notification {
@@ -18,6 +18,18 @@
 .hidden {
   display: none;
 }
+#updateCheck {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 200px;
+  padding: 20px;
+  border-radius: 5px;
+  background-color: white;
+}
+.hidden {
+  display: none;
+}
 </style>
   <body>
 	<form>
@@ -28,6 +40,9 @@
 	<br>
 	<button type="button" id="displayConfig" onclick="javascript:displayConfigPage()"> Update Configuration</button>
 	</h4>
+	<div id="updateCheck">
+		<button type="button" id="checkForUpdate" onclick="javascript:checkForSoftwareUpdate()"> Check for Update</button>
+	</div>
 	<div id="notification" class="hidden">
 		<p id="message"></p>
 		<button id="close-button" onClick="closeNotification()" class="hidden">
@@ -53,12 +68,22 @@
 				ipcRenderer.send('display-config');
 			}
 
+			function checkForSoftwareUpdate() {
+				ipcRenderer.send('check-for-update');
+			}
+
 			const notification = document.getElementById('notification');
 			const message = document.getElementById('message');
 			const restartButton = document.getElementById('restart-button');
 			ipcRenderer.on('update_available', () => {
   				ipcRenderer.removeAllListeners('update_available');
   				message.innerText = 'A new update is available. Downloading now...';
+  				notification.classList.remove('hidden');
+			});
+			ipcRenderer.on('update_not_available', () => {
+  				ipcRenderer.removeAllListeners('update_not_available');
+				console.log ('Sofware is up-to-date');
+  				message.innerText = 'Your software is up to date.';
   				notification.classList.remove('hidden');
 			});
 			ipcRenderer.on('update_downloaded', () => {

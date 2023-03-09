@@ -49,6 +49,12 @@
   				message.innerText = 'A new update is available. Downloading now...';
   				notification.classList.remove('hidden');
 			});
+			ipcRenderer.on('update_not_available', () => {
+  				ipcRenderer.removeAllListeners('update_not_available');
+				console.log ('Sofware is up-to-date');
+  				message.innerText = 'Your software is up to date.';
+  				notification.classList.remove('hidden');
+			});
 			ipcRenderer.on('update_downloaded', () => {
   				ipcRenderer.removeAllListeners('update_downloaded');
   				message.innerText = 'Update Downloaded. It will be installed on restart. Restart now?';
