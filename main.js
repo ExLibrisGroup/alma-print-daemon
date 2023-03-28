@@ -33,12 +33,15 @@ let useLandscape = false;
 let useColor = false;
 let useLocalPrinter;
 let menuOffset = 0;
+let printouts;
 //For classic printing using the browser window
 let printDocs;
 let docIndex = 0;
 let total_document_count = 0;
 let notPrinting = true;
 let paused = true;
+let testDate = null;
+let libraryHours = null;
 
 const getPrinterQueues = async (type, offset) => 
   await alma.getp(`/conf/printers?printout_queue=${type}&limit=100&offset=${offset}`);
@@ -48,6 +51,21 @@ const getPrintouts = async (printer_id = useAlmaPrinters, limit = 100) =>
 
 const markAsPrinted = async id =>
   await alma.postp(`/task-lists/printouts/${id}?op=mark_as_printed`, {});
+
+const getLibraryHours = async (libraryCode, getDate) =>
+  await alma.getp(`/conf/libraries/${libraryCode}/open-hours?from=${getDate}&to=${getDate}`);
+
+const viaBrowserSortPrintouts = async () => await printDocs.printout.sort ((a, b) => {
+  if (a.date < b.date) {
+    return -1;
+  }
+})
+
+const viaPDFSortPrintouts = async () => await printouts.printout.sort ((a, b) => {
+  if (a.date < b.date) {
+    return -1;
+  }
+})
 
 const htmlToPdf = html => {
   const pdfFile = pdf.create(html, pdfOptions);
@@ -68,6 +86,7 @@ const printDocumentsViaBrowser = async () => {
   docIndex = 0;
   console.log ('Back from getDocuments; total_record_count = ' + total_record_count);
   if (total_record_count > 0) {
+    viaBrowserSortPrintouts (); //GitHub issue #10
     notPrinting = false;
     console.log ('Load first document');
     mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDocs.printout[docIndex].letter));
@@ -95,9 +114,11 @@ const printDocumentsViaPDF = async () => {
   if (!service) {
     mainWindow.loadURL('File://' + __dirname + '\\docsRetrieving.html');
   }
-  let printouts = await getPrintouts();
+  printouts = await getPrintouts();
   console.log ('Back from getPrintouts');
   let total_record_count  = printouts.total_record_count;
+  if (total_record_count > 0) 
+    viaPDFSortPrintouts (); //GitHub issue #10
   if (total_record_count && !service) {
     mainWindow.loadURL('File://' + __dirname + '\\docsPrinting.html');
   }
@@ -124,6 +145,8 @@ const printDocumentsViaPDF = async () => {
     }
     printouts =  await getPrintouts();
     total_record_count = printouts.total_record_count;
+    if (total_record_count > 0)
+      viaPDFSortPrintouts (); //GitHub issue #10
   } 
 
   if (!service) {
@@ -192,7 +215,6 @@ let setup = process.argv.indexOf('setup')==-1?false:true;
 console.log ('setup = ' + setup);
 let service = process.argv.indexOf('service')==-1?false:true;
 console.log ('service = ' + service);
-
 //getAlmaPrinters ();
 
 success = initConfiguration();
@@ -222,9 +244,9 @@ function createWindow () {
   if (setup || !service) {
     mainWindow = new BrowserWindow({
       width: 600,
-      height: 595,
+      height: 625,
       show: true,
-      title: "Alma Print Daemon 2.1.0",
+      title: "Alma Print Daemon 2.2.0",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -318,12 +340,69 @@ function createWindow () {
 }
 
 //Function to control getting documents when the timer hits
-function getDocumentsTimerController() {
+const getDocumentsTimerController = async () => {
+  let daemonActive = true;
   console.log ('Timer triggered');
-  if (service)
-    printDocumentsViaPDF();
-  else
-    printDocumentsViaBrowser();
+  //libraryOpen = await checkLibraryHours();
+  daemonActive = checkActiveHours();
+  if (daemonActive) {
+    if (service)
+      printDocumentsViaPDF();
+    else
+      printDocumentsViaBrowser();
+  } else {
+    console.log ('Not during active hours...set timer');
+    timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
+    if (!service) {
+      mainWindow.loadURL('File://' + __dirname + '\\docsPrintSleeping.html');
+    }
+  }
+}
+
+function checkActiveHours() {
+  var currentdate = new Date(); 
+  let timePad = currentdate.getHours() < 10 ? '0' : ''; 
+  let timePad2 = currentdate.getMinutes() < 10 ? '0' : '';  
+  var checkTime = timePad + currentdate.getHours() + ":"  
+                + timePad2 + currentdate.getMinutes();  
+  if (checkTime >= configSettings.fromTime && checkTime <= configSettings.untilTime) {
+    console.log ('Daemon active time!');
+    return true;
+  } else {
+    console.log ('Daemon inactive time!');
+    return false;
+  }
+}
+
+const checkLibraryHours = async () => {
+  //Check date and time to see if library is open. If not, do not bother requesting documents.
+  var currentdate = new Date(); 
+  let monthPad = currentdate.getMonth()+1 < 10 ? '0' : '';
+  let datePad = currentdate.getDate() < 10 ? '0' : '';
+  var checkDate = currentdate.getFullYear() + "-"
+                + monthPad + (currentdate.getMonth() + 1 )  + "-" 
+                + datePad + currentdate.getDate(); 
+  let timePad = currentdate.getHours() < 10 ? '0' : ''; 
+  let timePad2 = currentdate.getMinutes() < 10 ? '0' : '';  
+  var checkTime = timePad + currentdate.getHours() + ":"  
+                + timePad2 + currentdate.getMinutes();
+  if (testDate !== checkDate) {
+    libraryHours = await getLibraryHours('MAIN', checkDate);
+    console.log ('Library hours: ' + JSON.stringify(libraryHours));
+    testDate = checkDate;
+  }
+
+  for (let i = 0; i < libraryHours.day[0].hour.length; i++) {
+    if (checkTime >= libraryHours.day[0].hour[i].from && checkTime <= libraryHours.day[0].hour[i].to) {
+      console.log ('Library is open!');
+      return true;
+    } else{
+      console.log ('Library is closed!');
+      return false;
+    }
+   } 
+   //If we got here, assume no library hours set and library is open
+   return true;
 }
 
 //Function to read config file and set options accordingly
@@ -362,10 +441,15 @@ function initConfiguration() {
       console.log ('Config file already converted!');
     }
 
+    if (configSettings.fromTime == undefined)
+      configSettings.fromTime = "00:00";
+    if (configSettings.untilTime == undefined)
+      configSettings.untilTime = "24:00"
     console.log('Region = ' + configSettings.region);
     console.log('API Key = ' + configSettings.apiKey);
     console.log('Interval  = ' + configSettings.interval);
     console.log('Auto Start = ' + configSettings.autoStart);
+    console.log('Print Daemon Active Hours = ' + configSettings.fromTime + ' to ' + configSettings.untilTime);
     console.log('Alma Printer Profiles = ' + JSON.stringify(configSettings.almaPrinterProfiles));
     console.log ('Writing config values to log');
     let d = new Date();
@@ -377,6 +461,7 @@ function initConfiguration() {
     WriteLog ('API Key = hidden');
     WriteLog ('Interval (minutes) = ' + configSettings.interval);
     WriteLog('Auto Start = ' + configSettings.autoStart);
+    WriteLog('Print Daemon Active Hours = ' + configSettings.fromTime + ' to ' + configSettings.untilTime);
     WriteLog('Alma Printer Profiles = ' + JSON.stringify(configSettings.almaPrinterProfiles));
 
     //printer.setPrinter(configSettings.localPrinter);
@@ -437,10 +522,11 @@ ipcMain.on('save-settings', function(e, configString){
     mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
   }
   else {
-    if (service)
-      printDocumentsViaPDF();
-    else
-      printDocumentsViaBrowser();
+    getDocumentsTimerController();
+    //if (service)
+    //  printDocumentsViaPDF();
+    //else
+    //  printDocumentsViaBrowser();
   }
 })
 
@@ -458,7 +544,8 @@ ipcMain.on('print-continue', function(e) {
   setup = false;
   paused = false;
   //Has a UI, so print via browser
-  printDocumentsViaBrowser();
+  getDocumentsTimerController();
+  //printDocumentsViaBrowser();
 })
 
 //Catch "Pause printing" from renderer
