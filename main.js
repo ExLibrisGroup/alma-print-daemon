@@ -133,13 +133,17 @@ const printDocumentsViaPDF = async () => {
         }
 
         let filename = (await htmlToPdf(printout.letter)).filename;
+        WriteLog ('PDF file to print: ' + filename);
         //await printFile(filename)
+        console.log ("Service printer = " + printer.getCurrentPrinter());
         await printer.print (filename, printOptions)
         fs.unlinkSync(filename);
         /* Post File */
         await markAsPrinted(printout.id);
         console.log('printed file', printout.id)
       } catch(e) {
+        WriteLog ('Service: Printing document ' + printout.id + ' failed on ' + printout.printer.value + '. Skipping to next document.' );
+        WriteLog ('Service: Print error ' + e);
         console.error('Error', e);
       }
     }
@@ -208,14 +212,14 @@ else {
   })
 }
 
-//WriteLog ("at startup APIKEY = " + process.env.ALMA_APIKEY);
-//WriteLog ("at startup APIPATH = " + process.env.ALMA_APIPATH);
 console.log ('Arguments = ' + process.argv);
 let setup = process.argv.indexOf('setup')==-1?false:true;
 console.log ('setup = ' + setup);
 let service = process.argv.indexOf('service')==-1?false:true;
 console.log ('service = ' + service);
-//getAlmaPrinters ();
+
+// Force service to true for testing service functionality
+//service = true;
 
 success = initConfiguration();
 if (!success && !setup) {
@@ -246,7 +250,7 @@ function createWindow () {
       width: 600,
       height: 625,
       show: true,
-      title: "Alma Print Daemon 2.2.0",
+      title: "Alma Print Daemon 2.2.0-beta-01",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -259,9 +263,29 @@ function createWindow () {
       if (lastAlmaPrinter != printDocs.printout[docIndex].printer.value) {
         getLocalPrinter(printDocs.printout[docIndex].printer.value);
       }
-      mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, function(success){
-        //await markAsPrinted(printDocs.printout[docIndex].id);
-        markAsPrinted(printDocs.printout[docIndex].id);
+    
+      try {
+        mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success, errorType) => {
+          if (!success) {
+            //Checking success here should work, according to Electron doc...but doens't. Using try/catch/finally instead
+            console.log ('Printing failed with error ' + errorType);
+            console.log ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.'); 
+            WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + ' with error ' + errorType + '. Skipping to next document.' );
+            //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
+          }
+          else {
+            //Success printing...mark document as printed.
+            markAsPrinted(printDocs.printout[docIndex].id);
+          }
+        })
+      } // end try
+      catch {
+        console.log ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.' ) ;
+        //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
+        WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.' );
+
+      }
+      finally {
         docIndex++;
         if (docIndex < total_record_count) {
           console.log ('More docs....load next one:  ' + docIndex);
@@ -279,10 +303,10 @@ function createWindow () {
             console.log ('No more docs...set the timer');
             timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
           }
-        }
-      })
+        }    
+      }
     })
-    
+
     //mainWindow.webContents.openDevTools();
     if (setup) {
       WriteLog ('Started with SETUP parameter....create mainWindow');
