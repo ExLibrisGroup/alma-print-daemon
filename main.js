@@ -81,26 +81,42 @@ const printDocumentsViaBrowser = async () => {
   console.log ('Entered printDocumentsViaBrowser');
   clearTimeout(timer);
   mainWindow.loadURL('File://' + __dirname + '\\docsRetrieving.html');
-  printDocs = await getPrintouts();
-  total_record_count  = printDocs.total_record_count;
-  docIndex = 0;
-  console.log ('Back from getDocuments; total_record_count = ' + total_record_count);
-  if (total_record_count > 0) {
-    viaBrowserSortPrintouts (); //GitHub issue #10
-    notPrinting = false;
-    console.log ('Load first document');
-    mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDocs.printout[docIndex].letter));
+  try {
+    printDocs = await getPrintouts();
+    total_record_count  = printDocs.total_record_count;
+    docIndex = 0;
+    console.log ('Back from getDocuments; total_record_count = ' + total_record_count);
+    if (total_record_count > 0) {
+      viaBrowserSortPrintouts (); //GitHub issue #10
+      notPrinting = false;
+      console.log ('Load first document');
+      mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDocs.printout[docIndex].letter));
+    }
+    else {
+      notPrinting = true;
+      if (configSettings.interval == 0) {
+        mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
+        //Don't set a timer....requests are done manually
+        return;
+      }
+      else {
+        mainWindow.loadURL('File://' + __dirname + '\\docsPrintedInterval.html');
+        console.log ('No docs at all..set the timer');
+        timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
+      }
+    }
   }
-  else {
+  catch (e) {
     notPrinting = true;
+    WriteLog ('Error retrieving documents from Alma:  ' + e.message);
+    console.log ('Error retrieving documents from Alma:  ' + e.message);
     if (configSettings.interval == 0) {
-      mainWindow.loadURL('File://' + __dirname + '\\docsPrintedManual.html');
+      mainWindow.loadURL('File://' + __dirname + '\\docsRetrievalErrorManual.html');
       //Don't set a timer....requests are done manually
       return;
     }
     else {
-      mainWindow.loadURL('File://' + __dirname + '\\docsPrintedInterval.html');
-      console.log ('No docs at all..set the timer');
+      mainWindow.loadURL('File://' + __dirname + '\\docsRetrievalErrorInterval.html');
       timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
     }
   }
@@ -114,8 +130,18 @@ const printDocumentsViaPDF = async () => {
   if (!service) {
     mainWindow.loadURL('File://' + __dirname + '\\docsRetrieving.html');
   }
-  printouts = await getPrintouts();
-  console.log ('Back from getPrintouts');
+  //Need a try/catch block here
+  try {
+    printouts = await getPrintouts();
+    console.log ('Back from getPrintouts');
+  }
+  catch (e) {
+    WriteLog ('Service: retrieving Alma documents failed. Resetting timer to try again.');
+    WriteLog ('Service: Retrieval error ' + e.message);
+    console.log ('set timer to get next batch of documents to print');
+    timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
+    return;
+  }
   let total_record_count  = printouts.total_record_count;
   if (total_record_count > 0) 
     viaPDFSortPrintouts (); //GitHub issue #10
@@ -141,16 +167,26 @@ const printDocumentsViaPDF = async () => {
         /* Post File */
         await markAsPrinted(printout.id);
         console.log('printed file', printout.id)
-      } catch(e) {
+      } 
+      catch (e) {
         WriteLog ('Service: Printing document ' + printout.id + ' failed on ' + printout.printer.value + '. Skipping to next document.' );
-        WriteLog ('Service: Print error ' + e);
+        WriteLog ('Service: Print error ' + e.message);
         console.error('Error', e);
       }
     }
+    try {
     printouts =  await getPrintouts();
     total_record_count = printouts.total_record_count;
     if (total_record_count > 0)
       viaPDFSortPrintouts (); //GitHub issue #10
+    }
+    catch (e) {
+      WriteLog ('Service: retrieving Alma documents failed. Resetting timer to try again.');
+      WriteLog ('Service: Retrieval error ' + e.message);
+      console.log ('set timer to get next batch of documents to print');
+      timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
+      return;      
+    }
   } 
 
   if (!service) {
@@ -265,24 +301,24 @@ function createWindow () {
       }
     
       try {
-        mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success, errorType) => {
-          if (!success) {
+        mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success) => {
+          //if (!success) {
             //Checking success here should work, according to Electron doc...but doens't. Using try/catch/finally instead
-            console.log ('Printing failed with error ' + errorType);
-            console.log ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.'); 
-            WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + ' with error ' + errorType + '. Skipping to next document.' );
+          //  console.log ('Blah Printing failed with error ' + errorType);
+          //  console.log ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.'); 
+          //  WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + ' with error ' + errorType + '. Skipping to next document.' );
             //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
-          }
-          else {
+          //}
+          //else {
             //Success printing...mark document as printed.
             markAsPrinted(printDocs.printout[docIndex].id);
-          }
+          //}
         })
       } // end try
-      catch {
+      catch (e) {
         console.log ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.' ) ;
         //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
-        WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.' );
+        WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + ' with error ' + e.message + '. Skipping to next document.' );
 
       }
       finally {
