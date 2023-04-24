@@ -286,7 +286,7 @@ function createWindow () {
       width: 600,
       height: 625,
       show: true,
-      title: "Alma Print Daemon 2.2.0-beta-01",
+      title: "Alma Print Daemon 2.2.0-beta-02",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -295,24 +295,25 @@ function createWindow () {
 
     mainWindow.webContents.on('did-finish-load', () => {
       if (paused || notPrinting) return;
-      console.log ('Document loaded...print it');
+      console.log ('Document loaded...print it. Document id = ' +  printDocs.printout[docIndex].id);
+
       if (lastAlmaPrinter != printDocs.printout[docIndex].printer.value) {
         getLocalPrinter(printDocs.printout[docIndex].printer.value);
       }
     
       try {
-        mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success) => {
-          //if (!success) {
-            //Checking success here should work, according to Electron doc...but doens't. Using try/catch/finally instead
-          //  console.log ('Blah Printing failed with error ' + errorType);
-          //  console.log ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.'); 
-          //  WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + ' with error ' + errorType + '. Skipping to next document.' );
+        mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success, errorType) => {
+          if (!success) {
+            //Checking success here should work, according to Electron doc...but doesn't. Using try/catch/finally instead.
+            //This one seems to hit if the printer is offline; the catch hits if the printer device is invalid.
+            console.log ('Printing document failed on ' + useLocalPrinter + '. Skipping to next document.'); 
+            WriteLog ('Printing document failed on ' + useLocalPrinter + ' with error ' + errorType + '. Skipping to next document.' );
             //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
-          //}
-          //else {
+          }
+          else {
             //Success printing...mark document as printed.
             markAsPrinted(printDocs.printout[docIndex].id);
-          //}
+          }
         })
       } // end try
       catch (e) {
