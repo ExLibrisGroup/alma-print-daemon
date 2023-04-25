@@ -159,11 +159,11 @@ const printDocumentsViaPDF = async () => {
         }
 
         let filename = (await htmlToPdf(printout.letter)).filename;
-        WriteLog ('PDF file to print: ' + filename);
         //await printFile(filename)
         console.log ("Service printer = " + printer.getCurrentPrinter());
         await printer.print (filename, printOptions)
         fs.unlinkSync(filename);
+        WriteLog ('Printed document ' + printout.id + ' on ' + useLocalPrinter + '.' );
         /* Post File */
         await markAsPrinted(printout.id);
         console.log('printed file', printout.id)
@@ -312,6 +312,7 @@ function createWindow () {
           }
           else {
             //Success printing...mark document as printed.
+            WriteLog ('Printed document ' + printDocs.printout[docIndex].id + ' on ' + useLocalPrinter + '.' );
             markAsPrinted(printDocs.printout[docIndex].id);
           }
         })
