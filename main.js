@@ -130,14 +130,13 @@ const printDocumentsViaPDF = async () => {
   if (!service) {
     mainWindow.loadURL('File://' + __dirname + '\\docsRetrieving.html');
   }
-  //Need a try/catch block here
+
   try {
     printouts = await getPrintouts();
     console.log ('Back from getPrintouts');
   }
   catch (e) {
-    WriteLog ('Service: retrieving Alma documents failed. Resetting timer to try again.');
-    WriteLog ('Service: Retrieval error ' + e.message);
+    WriteLog ('Service: Error retrieving documents from Alma:  ' + e.message);
     console.log ('set timer to get next batch of documents to print');
     timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
     return;
@@ -175,14 +174,13 @@ const printDocumentsViaPDF = async () => {
       }
     }
     try {
-    printouts =  await getPrintouts();
-    total_record_count = printouts.total_record_count;
-    if (total_record_count > 0)
-      viaPDFSortPrintouts (); //GitHub issue #10
+      printouts =  await getPrintouts();
+      total_record_count = printouts.total_record_count;
+      if (total_record_count > 0)
+        viaPDFSortPrintouts (); //GitHub issue #10
     }
     catch (e) {
-      WriteLog ('Service: retrieving Alma documents failed. Resetting timer to try again.');
-      WriteLog ('Service: Retrieval error ' + e.message);
+      WriteLog ('Service: Error retrieving documents from Alma:  ' + e.message);
       console.log ('set timer to get next batch of documents to print');
       timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
       return;      
@@ -301,29 +299,19 @@ function createWindow () {
         getLocalPrinter(printDocs.printout[docIndex].printer.value);
       }
     
-      try {
-        mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success, errorType) => {
-          if (!success) {
-            //Checking success here should work, according to Electron doc...but doesn't. Using try/catch/finally instead.
-            //This one seems to hit if the printer is offline; the catch hits if the printer device is invalid.
-            console.log ('Printing document failed on ' + useLocalPrinter + '. Skipping to next document.'); 
-            WriteLog ('Printing document failed on ' + useLocalPrinter + ' with error ' + errorType + '. Skipping to next document.' );
-            //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
-          }
-          else {
-            //Success printing...mark document as printed.
-            WriteLog ('Printed document ' + printDocs.printout[docIndex].id + ' on ' + useLocalPrinter + '.' );
-            markAsPrinted(printDocs.printout[docIndex].id);
-          }
-        })
-      } // end try
-      catch (e) {
-        console.log ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + '. Skipping to next document.' ) ;
-        //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
-        WriteLog ('Printing document ' + printDocs.printout[docIndex].id + ' failed on ' + useLocalPrinter + ' with error ' + e.message + '. Skipping to next document.' );
-
-      }
-      finally {
+      mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success, errorType) => {
+        if (!success) {
+          //Checking success here should work, according to Electron doc...but doesn't...at least not for "invalid deviceName" error.
+          console.log ('Printing document failed on ' + useLocalPrinter +  ' with error ' + errorType + '. Skipping to next document.'); 
+          WriteLog ('Failed printing document  on ' + useLocalPrinter + ' with error ' + errorType + '. Skipping to next document.' );
+          //Printing failed. Don't mark document as printed....but continue to next document; it might use a different printer that doesn't generate an error
+        }
+        else {
+          //Success printing...mark document as printed.
+          console.log ('Successfully printed document; calling markAsPrinted');
+          WriteLog ('Successfully printed document ' + printDocs.printout[docIndex].id + ' on ' + useLocalPrinter + '.' );
+          markAsPrinted(printDocs.printout[docIndex].id);
+        }
         docIndex++;
         if (docIndex < total_record_count) {
           console.log ('More docs....load next one:  ' + docIndex);
@@ -341,16 +329,16 @@ function createWindow () {
             console.log ('No more docs...set the timer');
             timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
           }
-        }    
-      }
+        }  
+      })
     })
 
     //mainWindow.webContents.openDevTools();
     if (setup) {
       WriteLog ('Started with SETUP parameter....create mainWindow');
-      WriteLog ('Try to load configWindow.html');
+      //WriteLog ('Try to load configWindow.html');
       mainWindow.loadURL('File://' + __dirname + '\\configWindow.html');
-      WriteLog ('After trying to load configWindow.html'); 
+      //WriteLog ('After trying to load configWindow.html'); 
       localPrinterList = mainWindow.webContents.getPrinters();
       //console.log (localPrinterList);
       mainWindow.webContents.on('did-finish-load', () => {
@@ -731,9 +719,9 @@ function displayConfigPage() {
     clearTimeout(timer);
     //switch to SETUP mode
     setup = true;
-    WriteLog ('Try to load configWindow.html');
+    //WriteLog ('Try to load configWindow.html');
     mainWindow.loadURL('File://' + __dirname + '\\configWindow.html');
-    WriteLog ('After trying to load configWindow.html'); 
+    //WriteLog ('After trying to load configWindow.html'); 
     localPrinterList = mainWindow.webContents.getPrinters();
     //console.log (localPrinterList);
     mainWindow.webContents.on('did-finish-load', () => {
@@ -744,7 +732,7 @@ function displayConfigPage() {
         //console.log ('Send local printers to configWindow');
         mainWindow.webContents.send('local-printers', localPrinterList);
         //console.log ('Send alma printers to configWindow');
-        WriteLog('In displayConfigPage, on-did-finish-load, sending Alma Printer Queues = ' + JSON.stringify(almaPrinterQueues));
+        //WriteLog('In displayConfigPage, on-did-finish-load, sending Alma Printer Queues = ' + JSON.stringify(almaPrinterQueues));
         mainWindow.webContents.send('alma-printers', almaPrinterQueues);
       }
     })
