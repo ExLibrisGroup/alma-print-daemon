@@ -108,7 +108,7 @@ const printDocumentsViaBrowser = async () => {
   }
   catch (e) {
     notPrinting = true;
-    WriteLog ('Error retrieving documents from Alma:  ' + e.message);
+    WriteLog ('Error retrieving documents from Alma:  ' + e.message + '. Will try again.');
     console.log ('Error retrieving documents from Alma:  ' + e.message);
     if (configSettings.interval == 0) {
       mainWindow.loadURL('File://' + __dirname + '\\docsRetrievalErrorManual.html');
@@ -136,7 +136,7 @@ const printDocumentsViaPDF = async () => {
     console.log ('Back from getPrintouts');
   }
   catch (e) {
-    WriteLog ('Service: Error retrieving documents from Alma:  ' + e.message);
+    WriteLog ('Service: Error retrieving documents from Alma:  ' + e.message + '. Reset timer to try again.');
     console.log ('set timer to get next batch of documents to print');
     timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
     return;
@@ -180,7 +180,7 @@ const printDocumentsViaPDF = async () => {
         viaPDFSortPrintouts (); //GitHub issue #10
     }
     catch (e) {
-      WriteLog ('Service: Error retrieving documents from Alma:  ' + e.message);
+      WriteLog ('Service: Error retrieving documents from Alma:  ' + e.message + '. Reset timer to try again.');
       console.log ('set timer to get next batch of documents to print');
       timer = setTimeout(getDocumentsTimerController, configSettings.interval  * 60000);
       return;      
@@ -313,7 +313,12 @@ function createWindow () {
           markAsPrinted(printDocs.printout[docIndex].id);
         }
         docIndex++;
-        if (docIndex < total_record_count) {
+        let haveDocument = true;
+        if (printDocs.printout[docIndex] === undefined) {
+          console.log ('printDocs.printout[docIndex] undefined...stop processing batch!');
+          haveDocument = false;
+        }
+        if (docIndex < total_record_count && haveDocument) {
           console.log ('More docs....load next one:  ' + docIndex);
           mainWindow.loadURL('data:text/html;charset=utf-8,'  + encodeURIComponent(printDocs.printout[docIndex].letter));
         }
