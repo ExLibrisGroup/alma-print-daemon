@@ -16,6 +16,11 @@ autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'silly';
 
 let timer;
+let userLogFile;
+let userConfigFile;
+let globalLogFile;
+let globalConfigFile;
+let logFile = "";
 let configFile;
 let configSettings;
 let pdfOptions;
@@ -42,6 +47,7 @@ let notPrinting = true;
 let paused = true;
 let testDate = null;
 let libraryHours = null;
+let usingGlobalConfig = true;
 
 const getPrinterQueues = async (type, offset) => 
   await alma.getp(`/conf/printers?printout_queue=${type}&limit=100&offset=${offset}`);
@@ -284,7 +290,7 @@ function createWindow () {
       width: 600,
       height: 625,
       show: true,
-      title: "Alma Print Daemon 2.2.0-beta-02",
+      title: "Alma Print Daemon 2.2.0-beta-03",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -292,7 +298,12 @@ function createWindow () {
     })
 
     mainWindow.webContents.on('did-finish-load', () => {
-      if (paused || notPrinting) return;
+      if (paused || notPrinting) {
+        if (usingGlobalConfig && (mainWindow.title.indexOf("Using") == -1)) {
+          mainWindow.title = mainWindow.title + ": Using Global Configuration";
+        }
+        return;
+      }
       console.log ('Document loaded...print it. Document id = ' +  printDocs.printout[docIndex].id);
 
       if (lastAlmaPrinter != printDocs.printout[docIndex].printer.value) {
@@ -464,22 +475,74 @@ const checkLibraryHours = async () => {
 function initConfiguration() {
   let configExists = true;
   let configData;
+  let d = new Date();
+  let year, month, day;
+  year = d.getUTCFullYear();
+  month = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+  day = ('0' + d.getUTCDate()).slice(-2);
 
-  configFile =  app.getPath("userData") + "\\alma-print-config.json";
-  console.log (configFile);
-
+  //Check for global configuration file
+  globalConfigFile =  app.getPath("exe");
+  let lastSlash = globalConfigFile.lastIndexOf("\\");
+  globalConfigFile = globalConfigFile.substring(0, lastSlash);
+  globalConfigFile = globalConfigFile + "\\globalConfiguration.json";
+  console.log ("Checking for global configuration file: " + globalConfigFile);
   try {
-    configData = fs.readFileSync(configFile);
+    let globalConfigData = fs.readFileSync(globalConfigFile);
+    const globalConfigJSON = globalConfigData.toString('utf8');
+    let globalConfigSettings = JSON.parse(globalConfigJSON);
+    globalConfigFile = globalConfigSettings.globalConfigPath;
+    globalLogPath = globalConfigFile;
+    globalConfigFile = globalConfigFile + "\\alma-print-config.json"
+    globalLogFile = globalLogPath + "\\alma-print-daemon." + year + "-" + month  + "-" + day + '.log';
+    console.log ('Looks like we think we have a global configuration.');
+    console.log ('globalConfigFile: ' + globalConfigFile);
+    console.log ('globalLogFile: ' + globalLogFile);
   }
   catch (e) {
-    configExists = false;
-    configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"interval\": \"5\",\"autoStart\": \"false\",\"almaPrinterProfiles\": []}";
-    configSettings = JSON.parse(configData);
-    let message = 'Please set your configuration options in ' + configFile;
-    WriteLog(message);
-    return false;
-    //app.quit();
+    usingGlobalConfig = false;
+    globalConfigFile = "";
+    globalConfigPath = "";
   }
+
+  userConfigFile =  app.getPath("userData") + "\\alma-print-config.json";
+  userLogFile = app.getPath("userData") + "\\alma-print-daemon." + year + "-" + month  + "-" + day + '.log';
+
+  try {
+    logFile = globalLogFile;
+    //See if global config exists
+    configData = fs.readFileSync(globalConfigFile);
+    configFile  = globalConfigFile;
+  }
+  catch (e) {
+    usingGlobalConfig = false;
+    logFile = userLogFile;
+    //No global config....check if user config
+    try {
+      configData = fs.readFileSync(userConfigFile);
+      configFile = userConfigFile;
+    }
+    //No user config....force configuration
+    catch (ee) {
+      configFile = userConfigFile; //assume user config
+      configExists = false;
+      configData = "{\"region\": \"ap\",\"apiKey\": \"\",\"interval\": \"5\",\"autoStart\": \"false\",\"almaPrinterProfiles\": []}";
+      configSettings = JSON.parse(configData);
+      let message = 'Please set your configuration options in ' + configFile;
+      WriteLog(message);
+      return false;
+      //app.quit();
+    }
+  }
+ 
+  WriteLog ('Global config file: ' + globalConfigFile);
+  WriteLog ('User config file: ' + userConfigFile);
+  WriteLog ('Global log file: ' + globalLogFile);
+  WriteLog ('User log file: ' + userLogFile);
+  
+  WriteLog ('Using global config = ' + usingGlobalConfig);
+  WriteLog ('Using config file ' + configFile);
+  WriteLog ('Using log file: ' + logFile);
 
   if (configExists) {
 
@@ -550,14 +613,26 @@ function initConfiguration() {
 //Function to write log messages
 function WriteLog(message) {
   let d = new Date();
-  fs.appendFileSync(app.getPath("userData") + '/log.alma-print-daemon.' + d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1)  + "-" + d.getUTCDate() ,  d.toISOString() + ":  " + message + "\n");
+  fs.appendFileSync(logFile,  d.toISOString() + ":  " + message + "\n");
 }
 
 //Catch 'save-settings' from renderer
 ipcMain.on('save-settings', function(e, configString){
   console.log ('from renderer: user saved settings = ' + configString);
   // Write JSON Alma config file
-  fs.writeFileSync(configFile, configString);
+  try {
+    fs.writeFileSync(configFile, configString);
+  }
+  catch (e) {
+    let options  = {
+      type: 'error',
+      buttons: ['OK'],
+      title: 'Save Configuration Error',
+  
+      };
+      options.message = 'An error occurred trying to save the configuration.\r\nYou most likely do not have permissions.\r\nReverting to previous settings.\r\n' + e.message;
+      dialog.showMessageBox (mainWindow, options);
+  }
   //configWindow.close();
   //Reset last Alma Printer used as settings for that printer may have changed
   lastAlmaPrinter = 0;
@@ -739,6 +814,7 @@ function displayConfigPage() {
         //console.log ('Send alma printers to configWindow');
         //WriteLog('In displayConfigPage, on-did-finish-load, sending Alma Printer Queues = ' + JSON.stringify(almaPrinterQueues));
         mainWindow.webContents.send('alma-printers', almaPrinterQueues);
+        mainWindow.webContents.send('global-config-flag', usingGlobalConfig);
       }
     })
 }

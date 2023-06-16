@@ -204,6 +204,13 @@ ipcRenderer.on('alma-printers', (event, almaPrinters) => {
 	}
 })
 
+ipcRenderer.on('global-config-flag', (event, usingGlobalConfig) => {
+	let element = document.getElementById('globalConfig');
+	if (usingGlobalConfig)
+		element.removeAttribute('hidden');
+	else
+		element.setAttribute('hidden', 'hidden');
+})
 
 const getPrinterQueues = async (type, offset) => 
 	await alma.getp(`/conf/printers?printout_queue=${type}&limit=100&offset=${offset}`);
