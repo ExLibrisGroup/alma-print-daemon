@@ -613,7 +613,21 @@ function initConfiguration() {
 //Function to write log messages
 function WriteLog(message) {
   let d = new Date();
-  fs.appendFileSync(logFile,  d.toISOString() + ":  " + message + "\n");
+  try {
+    fs.appendFileSync(logFile,  d.toISOString() + ":  " + message + "\n");
+  }
+  catch (e) {
+    let options  = {
+      type: 'error',
+      buttons: ['OK'],
+      title: 'Could not write to log',
+  
+      };
+      options.message = 'An error occurred trying to write to the log file.\r\n' + e.message;
+      if (!service) {
+        //alert ('An error occurred trying to write to the log file.\r\n' + e.message);
+      }
+  }
 }
 
 //Catch 'save-settings' from renderer
