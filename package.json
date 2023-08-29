@@ -1,6 +1,6 @@
 {
   "name": "alma-print-daemon",
-  "version": "2.2.0-beta-03",
+  "version": "2.2.0",
   "description": "Alma Print Daemon",
   "main": "main.js",
   "dependencies": {
