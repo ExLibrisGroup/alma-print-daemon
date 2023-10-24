@@ -10,6 +10,7 @@ let availableAlmaPrinters = [];
 let almaPrinters;
 let cancelAvailable = false;
 let editMode = false;
+const remote = require ("electron").remote;
 
 const form = document.querySelector('form');
 form.addEventListener('submit', submitForm);
@@ -22,6 +23,16 @@ function submitForm(e){
 	let interval = 0;
 	let orientation;
 	let color;
+	let fromTime = document.querySelector('#fromTime').value;
+	let untilTime = document.querySelector('#untilTime').value;
+	let options  = {
+		type: 'error',
+		buttons: ['OK'],
+		title: 'Configuration Error',
+
+	  };
+	const timePattern = /^[0-2][0-9]:[0-5][0-9]/;
+
 	const region = document.querySelector('#region').value;
 	const apiKey = document.querySelector('#apiKey').value;
 	const autoStart = document.getElementById('autostart');
@@ -38,28 +49,66 @@ function submitForm(e){
 	}
 
 	if (apiKey.length == 0) {
-		alert ('An API key must be supplied.');
+		options.message = 'An API key must be supplied.'
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
 		document.getElementById("apiKey").focus();
 		return false;
 	}
 
 	if (badInterval) {
-		alert ('The interval must be greater than 0.');
+		options.message = 'The interval must be greater than 0.';
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
 		document.getElementById("interval").focus();
+		return false;
+	}
+	if (!timePattern.test (fromTime)) {
+		options.message = 'Invalid charcters in Active From time. Must be a valid time in 24-hour format.';
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
+		document.getElementById("fromTime").focus();
+		return false;
+	}
+
+	if (!timePattern.test (untilTime)) {
+		options.message = 'Invalid charcters in Active Until time. Must be a valid time in 24-hour format.';
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
+		document.getElementById("untilTime").focus();
+		return false;
+	}
+
+	if (fromTime > "24:00") {
+		options.message = 'Active From time must be a valid 24-hour time.';
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
+		document.getElementById("fromTime").focus();
+		return false;
+	}
+
+	if (untilTime > "24:00") {
+		options.message = 'Active Until time must be a valid 24-hour time.'
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
+		document.getElementById("untilTime").focus();
+		return false;
+	}
+
+	if (fromTime > untilTime) {
+		options.message = 'Active From time must be less than Active Until time.'
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
+		document.getElementById("fromTime").focus();
 		return false;
 	}
 
 	if (almaPrinterProfiles.length == 0) {
-		alert ('At least one Alma Printer Profile must be defined.')
+		options.message = 'At least one Alma Printer Profile must be defined.'
+		dialog.showMessageBox (remote.getCurrentWindow(), options);
 		return false;
 	}
 	//If all required config values entered, it is ok to save.
 	if (apiKey.length  && !badInterval && almaPrinterProfiles.length > 0) {
-
 		var configString = "{\"region\": \"" + region + "\",";
 		configString = configString + "\"apiKey\": \"" + apiKey + "\",";
 		configString = configString + "\"interval\": \"" + interval + "\",";
 		configString = configString + "\"autoStart\": \"" + autoStart.checked + "\",";
+		configString = configString + "\"fromTime\": \"" + fromTime + "\",";
+		configString = configString + "\"untilTime\": \"" + untilTime + "\",";
 		configString = configString + "\"almaPrinterProfiles\":";
 		configString = configString + JSON.stringify(almaPrinterProfiles);
 		configString = configString + "}";
@@ -92,6 +141,16 @@ ipcRenderer.on('send-settings', (event, configSettings) => {
 		document.getElementById('methodm').checked = true;
 		disableAutomaticOptions(true);
 	}
+
+	if (configSettings.fromTime == undefined)
+		document.getElementById('fromTime').value = "00:00";
+	else
+		document.getElementById('fromTime').value = configSettings.fromTime;
+	if (configSettings.untilTime == undefined)
+		document.getElementById('untilTime').value = "24:00";
+	else
+		document.getElementById('untilTime').value = configSettings.untilTime;
+
 	almaPrinterProfiles = configSettings.almaPrinterProfiles;
 })
 
@@ -145,6 +204,13 @@ ipcRenderer.on('alma-printers', (event, almaPrinters) => {
 	}
 })
 
+ipcRenderer.on('global-config-flag', (event, usingGlobalConfig) => {
+	let element = document.getElementById('globalConfig');
+	if (usingGlobalConfig)
+		element.removeAttribute('hidden');
+	else
+		element.setAttribute('hidden', 'hidden');
+})
 
 const getPrinterQueues = async (type, offset) => 
 	await alma.getp(`/conf/printers?printout_queue=${type}&limit=100&offset=${offset}`);
@@ -255,7 +321,7 @@ function loadAlmaPrinters(almaPrinters) {
 	console.log ("Parsed Alma printers JSON.  Number of printers = " + printersDefined);
 	let displayName;
 	for (i = 0; i < printersDefined; i++) {
-	  if (almaPrinters.printer[i].description !== null) {
+	  if (almaPrinters.printer[i].description !== null && almaPrinters.printer[i].description != undefined) {
 		displayName = almaPrinters.printer[i].name + " - " + almaPrinters.printer[i].description;
 	  }
 	  else {
@@ -276,7 +342,7 @@ function loadAvailableAlmaPrinters() {
 		let displayName;
 		for (let i = 0; i < availableAlmaPrinters.length; i++) {
 			availablePrinter = JSON.parse(JSON.stringify(availableAlmaPrinters[i]));
-			if (availablePrinter.description !== null) {
+			if (availablePrinter.description !== null && availablePrinter.description != undefined) {
 				displayName = availablePrinter.name + " - " + availablePrinter.description;
 		  	}
 		  	else {
@@ -530,7 +596,7 @@ function buildAlmaPrinterDisplayName(almaPrinters, id) {
 	for (let i = 0; i < printerCount; i++) {
 		if (almaPrinters.printer[i].id == id) {
 			displayName = almaPrinters.printer[i].name
-			if (almaPrinters.printer[i].description != null) {
+			if (almaPrinters.printer[i].description !== null && almaPrinters.printer[i].description != undefined) {
 				displayName = displayName + " - " + almaPrinters.printer[i].description;
 			};
 		    return true;

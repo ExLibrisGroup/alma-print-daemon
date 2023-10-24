@@ -52,6 +52,13 @@
 				Interval in minutes (ie: .25, 1, 1.5, 5):<input type="text" id="interval" size=3>
 				&emsp; <input type="checkbox" id="autostart" name="autostart">Auto Start <br>
 			  </div>
+			  <div id="activeHours">
+				Active time (ie: 08:00. 21:30):
+				<label>From:</label>
+				<input type="text" id="fromTime" size="3">
+				<label>Until:</label>
+				<input type="text" id="untilTime" size="3">
+			</div>
 		  </div>
 			<br>
 	  		<div id="container">
@@ -177,7 +184,7 @@
 					<button type="submit">Save and Continue Printing</button>
 					&emsp;
 					<button type="button" id="cancelSettings" onclick="javascript:resumePrinting()">Cancel and Continue Printing</button>
-					
+					&emsp; <label style="color: red" id="globalConfig" name="globalConfig" hidden>Global Configuration</label>
 					<!--
 					<input type='text' id='message' size=1000>
 					<br>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Alma Print Daemon 2.2.0-beta-03</title>
+	</head>
+<style>
+#notification {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 200px;
+  padding: 20px;
+  border-radius: 5px;
+  background-color: white;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+}
+.hidden {
+  display: none;
+}
+#updateCheck {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 200px;
+  padding: 20px;
+  border-radius: 5px;
+  background-color: white;
+}
+.hidden {
+  display: none;
+}
+</style>
+  <body>
+	<form>
+	<h4>
+	There was an error retrieving printous. Check the log for details. Timer set to try again.<br>
+	<button type=submit>Pause printing</button>
+	<br>
+	<br>
+	<button type="button" id="displayConfig" onclick="javascript:displayConfigPage()"> Update Configuration</button>
+	</h4>
+	<div id="updateCheck">
+		<button type="button" id="checkForUpdate" onclick="javascript:checkForSoftwareUpdate()"> Check for Update</button>
+	</div>
+	<div id="notification" class="hidden">
+		<p id="message"></p>
+		<button id="close-button" onClick="closeNotification()" class="hidden">
+		  Close
+		</button> 
+		<button id="restart-button" onClick="restartApp()" class="hidden">
+		  Restart
+		</button>
+	</div>
+	<script>
+			const electron = require('electron');
+			const {ipcRenderer} = electron;
+			const form = document.querySelector('form');
+
+			form.addEventListener('submit', submitForm);
+	
+			function submitForm(e){
+				e.preventDefault();
+				ipcRenderer.send('print-pause');
+			}
+
+			function displayConfigPage() {
+				ipcRenderer.send('display-config');
+			}
+
+			function checkForSoftwareUpdate() {
+				ipcRenderer.send('check-for-update');
+			}
+
+			const notification = document.getElementById('notification');
+			const message = document.getElementById('message');
+			const restartButton = document.getElementById('restart-button');
+			ipcRenderer.on('update_available', () => {
+  				ipcRenderer.removeAllListeners('update_available');
+  				message.innerText = 'A new update is available. Downloading now...';
+  				notification.classList.remove('hidden');
+			});
+			ipcRenderer.on('update_not_available', () => {
+  				ipcRenderer.removeAllListeners('update_not_available');
+				console.log ('Sofware is up-to-date');
+  				message.innerText = 'Your software is up to date.';
+  				notification.classList.remove('hidden');
+			});
+			ipcRenderer.on('update_downloaded', () => {
+  				ipcRenderer.removeAllListeners('update_downloaded');
+  				message.innerText = 'Update Downloaded. It will be installed on restart. Restart now?';
+  				restartButton.classList.remove('hidden');
+  				notification.classList.remove('hidden');
+			});
+
+			function closeNotification() {
+  				notification.classList.add('hidden');
+			}
+			function restartApp() {
+  				ipcRenderer.send('restart_app');
+			}
+		</script>
+	</form>
+  </body>
+</html>
