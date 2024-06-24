@@ -36,6 +36,7 @@ let mode;
 let lastAlmaPrinter = 0;
 let useLandscape = false;
 let useColor = false;
+let numCopies = 1;
 let useLocalPrinter;
 let menuOffset = 0;
 let printouts;
@@ -290,7 +291,7 @@ function createWindow () {
       width: 600,
       height: 625,
       show: true,
-      title: "Alma Print Daemon 2.2.0",
+      title: "Alma Print Daemon 2.2.1-beta-01",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
         nodeIntegration: true
@@ -310,7 +311,7 @@ function createWindow () {
         getLocalPrinter(printDocs.printout[docIndex].printer.value);
       }
     
-      mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter}, (success, errorType) => {
+      mainWindow.webContents.print({silent: true, landscape: useLandscape, color: useColor, deviceName: useLocalPrinter, copies: Math.floor(numCopies)}, (success, errorType) => {
         if (!success) {
           //Checking success here should work, according to Electron doc...but doesn't...at least not for "invalid deviceName" error.
           console.log ('Printing document failed on ' + useLocalPrinter +  ' with error ' + errorType + '. Skipping to next document.'); 
@@ -761,7 +762,12 @@ function getLocalPrinter(almaPrinter) {
   borderLeft = setBorderValue(configSettings.almaPrinterProfiles[i].borderLeft) + borderUnits;
   customHeight = configSettings.almaPrinterProfiles[i].pageHeight + borderUnits;
   customWidth = configSettings.almaPrinterProfiles[i].pageWidth + borderUnits;
-  
+
+  if (configSettings.almaPrinterProfiles[i].numCopies == undefined) 
+    numCopies = 1;
+  else
+    numCopies = configSettings.almaPrinterProfiles[i].numCopies;
+
   if (letterFormat == 'Custom') 
     pdfOptions = {
       height: customHeight,
@@ -792,7 +798,8 @@ function getLocalPrinter(almaPrinter) {
   
   printOptions = {
         "landscape": useLandscape,
-        "color": useColor
+        "color": useColor,
+        "copies": Math.floor(numCopies)
   }
   printer.setPrinter (useLocalPrinter);
   console.log ("Local printer settings:  useLandscape = " + useLandscape + " useColor = " + useColor + " useLocalPrinter = " + useLocalPrinter);

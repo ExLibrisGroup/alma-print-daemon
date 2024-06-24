@@ -379,6 +379,9 @@ function savePrinterProfile () {
 	const left = document.querySelector('#borderLeft').value;
 	const customHeight = document.querySelector('#pageHeight').value;
 	const customWidth = document.querySelector('#pageWidth').value;
+	let copies = document.querySelector('#numCopies').value;
+	if (copies == 0 || isNaN(copies))
+		copies = 1
 
 	//if in edit mode, remove the existing entry and build new one
 	if (editMode) {
@@ -386,14 +389,14 @@ function savePrinterProfile () {
 		for (var i = checkedBoxes.length - 1; i >= 0; i--) {
 			almaPrinterProfiles.splice(checkedBoxes[i].value, 1);
 		}
-		jsonObj = {almaPrinter: document.querySelector('#almaPrinterId').value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left, pageHeight: customHeight, pageWidth: customWidth};
+		jsonObj = {almaPrinter: document.querySelector('#almaPrinterId').value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left, pageHeight: customHeight, pageWidth: customWidth, numCopies: copies};
 	} else {
 		//we are adding; build new entries
 		var x = document.getElementById("almaPrinter");
 		for (var i = 0; i < x.options.length; i++) {
 			console.log ("in the addloop");
 			if (x.options[i].selected) {
-				jsonObj = {almaPrinter: x.options[i].value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left, pageHeight: customHeight, pageWidth: customWidth};
+				jsonObj = {almaPrinter: x.options[i].value, localPrinter: localPrinterSelected, orientation: orientationValue, color: colorValue, letterFormat: format, borderUnits: units, borderTop: top, borderRight: right, borderBottom: bottom, borderLeft: left, pageHeight: customHeight, pageWidth: customWidth, numCopies: copies};
 			}
 		}
 	}	
@@ -439,6 +442,10 @@ function editPrinterProfile () {
 	document.getElementById('borderRight').value = setBorderValue(editProfile.borderRight);
 	document.getElementById('pageHeight').value = editProfile.pageHeight;
 	document.getElementById('pageWidth').value = editProfile.pageWidth;
+	if (editProfile.numCopies == undefined)
+		document.getElementById('numCopies').value = 1;
+	else
+		document.getElementById('numCopies').value = editProfile.numCopies;
 	console.log ('local printer looking for ' + decodeURIComponent(editProfile.localPrinter));
 	for (var i = 0; i < document.getElementById('localPrinter').length; i++) {
 		console.log ('local printer match? ' + document.getElementById('localPrinter').options[i].value);
@@ -506,7 +513,7 @@ function appendPrinterProfiles(almaPrinters, data) {
 		myObj.remove();
 	var mainContainer = document.getElementById("printerProfiles");
 	var div = document.createElement('div');
-	var letterFormat, borderUnits, borderTop, borderRight, borderBottom, borderLeft;
+	var letterFormat, borderUnits, borderTop, borderRight, borderBottom, borderLeft, copies;
 	div.id = 'profiles'
 	mainContainer.appendChild(div);
 	var secondContainer = document.getElementById('profiles');
@@ -540,6 +547,11 @@ function appendPrinterProfiles(almaPrinters, data) {
 				div.innerHTML = div.innerHTML + ' Page Width/Height ' + data[i].pageWidth + '/' + data[i].pageHeight + borderUnits;
 			div.innerHTML = div.innerHTML + ', ' + data[i].orientation + '<br>';
 			div.innerHTML = div.innerHTML + '&emsp; Border (' + borderUnits + '): top ' + borderTop + ', right ' + borderRight + ', bottom ' + borderBottom + ', left ' + borderLeft + '<br>';
+			if (data[i].numCopies == undefined)
+				copies = 1
+			else	
+				copies = data[i].numCopies;
+			div.innerHTML = div.innerHTML + '&emsp; Copies:  ' + copies + '<br>';
 			secondContainer.appendChild(div);
 		}	
 	}
