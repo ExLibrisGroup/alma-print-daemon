@@ -1,6 +1,6 @@
 var alma = require ('almarestapi-lib');
 const ipcRenderer = require('electron').ipcRenderer;
-const {dialog} = require('electron').remote;
+const {dialog} = require('electron');
 const defaultBorder = ".4"  //This was the hardcoded default pre-2.0.0-beta-03
 let selectedLocalPrinter;	
 let almaPrinterProfiles;

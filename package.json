@@ -1,12 +1,12 @@
 {
   "name": "alma-print-daemon",
-  "version": "2.2.1-beta-01",
+  "version": "2.2.1-beta-02",
   "description": "Alma Print Daemon",
   "main": "main.js",
   "dependencies": {
     "almarestapi-lib": "^1.1.4",
     "async": "^3.2.2",
-    "electron-edge-js": "^12.16.3",
+    "electron-edge-js": "^30.1.0",
     "electron-log": "^4.3.5",
     "electron-notarize": "^0.2.1",
     "electron-updater": "^4.3.4",
@@ -15,7 +15,7 @@
     "temp": "^0.9.4"
   },
   "devDependencies": {
-    "electron": "^9.4.2",
+    "electron": "^30.1.0",
     "electron-builder": "^22.9.1"
   },
   "scripts": {

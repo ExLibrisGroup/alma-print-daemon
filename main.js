@@ -23,6 +23,7 @@ let globalConfigFile;
 let logFile = "";
 let configFile;
 let configSettings;
+let passLocalPrinters;
 let pdfOptions;
 let printOptions;
 
@@ -291,10 +292,11 @@ function createWindow () {
       width: 600,
       height: 625,
       show: true,
-      title: "Alma Print Daemon 2.2.1-beta-01",
+      title: "Alma Print Daemon 2.2.1-beta-02",
       webPreferences: {
         //preload: path.join(__dirname, 'preload.js'),
-        nodeIntegration: true
+        nodeIntegration: true,
+        contextIsolation: false
       }
     })
 
@@ -356,14 +358,15 @@ function createWindow () {
       //WriteLog ('Try to load configWindow.html');
       mainWindow.loadURL('File://' + __dirname + '\\configWindow.html');
       //WriteLog ('After trying to load configWindow.html'); 
-      localPrinterList = mainWindow.webContents.getPrinters();
-      //console.log (localPrinterList);
+      mainWindow.webContents.getPrintersAsync().then((localPrinterList) => {
+        passLocalPrinters = localPrinterList;
+      });
       mainWindow.webContents.on('did-finish-load', () => {
         //console.log ('did-finish-load for configWindow');
         //console.log ('Send saved settings to configWindow');
         mainWindow.webContents.send('send-settings', configSettings);
         //console.log ('Send local printers to configWindow');
-        mainWindow.webContents.send('local-printers', localPrinterList);
+        mainWindow.webContents.send('local-printers', passlocalPrinters);
         //console.log ('Send alma printers to configWindow');
         //console.log (almaPrinterQueues);
         mainWindow.webContents.send('alma-printers', almaPrinterQueues);
@@ -823,15 +826,16 @@ function displayConfigPage() {
     //WriteLog ('Try to load configWindow.html');
     mainWindow.loadURL('File://' + __dirname + '\\configWindow.html');
     //WriteLog ('After trying to load configWindow.html'); 
-    localPrinterList = mainWindow.webContents.getPrinters();
-    //console.log (localPrinterList);
+    mainWindow.webContents.getPrintersAsync().then((localPrinterList) => {
+      passLocalPrinters = localPrinterList;
+    });
     mainWindow.webContents.on('did-finish-load', () => {
       if (setup) {
         //console.log ('did-finish-load for configWindow');
         //console.log ('Send saved settings to configWindow');
         mainWindow.webContents.send('send-settings', configSettings);
         //console.log ('Send local printers to configWindow');
-        mainWindow.webContents.send('local-printers', localPrinterList);
+        mainWindow.webContents.send('local-printers', passLocalPrinters);
         //console.log ('Send alma printers to configWindow');
         //WriteLog('In displayConfigPage, on-did-finish-load, sending Alma Printer Queues = ' + JSON.stringify(almaPrinterQueues));
         mainWindow.webContents.send('alma-printers', almaPrinterQueues);
