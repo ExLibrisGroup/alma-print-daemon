@@ -4,7 +4,7 @@
   "description": "Alma Print Daemon",
   "main": "main.js",
   "dependencies": {
-    "almarestapi-lib": "^1.1.4",
+    "almarestapi-lib": "^1.1.9",
     "async": "^3.2.2",
     "electron-edge-js": "^12.16.3",
     "electron-log": "^4.3.5",
