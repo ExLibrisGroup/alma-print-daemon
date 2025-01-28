@@ -10,8 +10,8 @@ The extension's configuration settings include:
 - Alma Printer Profiles, associating Alma Printer Queues to be serviced by local and/or network printers
 - Automatic interval printing (in minutes, decimals allowed) or manual on-demand printing
 
-Requires at least Alma March 2020 release.
-
 Microsoft Windows and macOS versions available.
 
 https://github.com/ExLibrisGroup/alma-print-daemon/releases/
+
+https://developers.exlibrisgroup.com/appcenter/alma-print-daemon/
